@@ -9,6 +9,10 @@ import { Input } from '../../src/components/Input';
 import { Mail, Lock } from 'lucide-react-native';
 import { PageHeader } from '../../src/components/PageHeader';
 import { useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
+
+// Đăng ký WebBrowser
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -37,12 +41,12 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      // Gọi API đăng nhập bằng tài khoản seeded của backend
-      await login({ email: 'user@farmy.com', password: 'UserPassword123' });
-      router.replace('/(tabs)/home');
+      // Mở trình duyệt đến cổng Auth Google của NestJS backend
+      const authUrl = 'http://192.168.1.203:3000/api/v1/auth/google';
+      await WebBrowser.openBrowserAsync(authUrl);
     } catch (error: any) {
       console.error(error);
-      Alert.alert('Lỗi đăng nhập Google', 'Không thể kết nối dịch vụ Google.');
+      Alert.alert('Lỗi', 'Không thể mở trình duyệt đăng nhập Google.');
     } finally {
       setLoading(false);
     }
