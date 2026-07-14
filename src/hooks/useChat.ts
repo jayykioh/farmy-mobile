@@ -22,8 +22,9 @@ export function useChat() {
 
     const token = await AsyncStorage.getItem('access_token');
 
+    const clientMessageId = `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     // Mở SSE kết nối
-    let url = `${api.defaults.baseURL}/chat/stream/events?query=${encodeURIComponent(content)}`;
+    let url = `${api.defaults.baseURL}/chat/stream/events?message=${encodeURIComponent(content)}&client_message_id=${clientMessageId}`;
     if (sessionId) {
       url += `&session_id=${sessionId}`;
     }
