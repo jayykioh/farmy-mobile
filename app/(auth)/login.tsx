@@ -4,6 +4,7 @@ import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/store/authStore';
+import { api } from '../../src/api/client';
 import { Button } from '../../src/components/Button';
 import { Input } from '../../src/components/Input';
 import { Mail, Lock } from 'lucide-react-native';
@@ -41,8 +42,8 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      // Mở trình duyệt đến cổng Auth Google của NestJS backend
-      const authUrl = 'http://192.168.1.203:3000/api/v1/auth/google';
+      // Mở trình duyệt đến cổng Auth Google của NestJS backend dựa trên biến môi trường
+      const authUrl = `${api.defaults.baseURL}/auth/google`;
       await WebBrowser.openBrowserAsync(authUrl);
     } catch (error: any) {
       console.error(error);
