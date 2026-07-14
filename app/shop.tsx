@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   },
   btnEquipped: {
     backgroundColor: colors.primary,
-    borderColor: colors.primaryDark,
+    borderColor: colors.primaryContainer,
     borderBottomWidth: 3,
   },
   btnTextEquipped: {

@@ -6,6 +6,7 @@ import { PageHeader } from '../../src/components/PageHeader';
 import { Archive, Trash2, Activity, Clock, CheckCircle2, Droplets, Leaf, Shield, Plus } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useDiaryDetail, useDiaryLogs } from '../../src/hooks/useDiary';
+import { api } from '../../src/api/client';
 
 export default function DiaryHistoryScreen() {
   const { id } = useLocalSearchParams();
@@ -417,7 +418,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 10,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: colors.primaryContainer,
   },
   fab: {
     position: 'absolute',
