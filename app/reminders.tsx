@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
@@ -6,20 +6,88 @@ import { PageHeader } from '../src/components/PageHeader';
 import { Droplets, Clock, Plus, Trash2, Repeat } from 'lucide-react-native';
 import { Button } from '../src/components/Button';
 import { useRouter } from 'expo-router';
-
-const mockReminders = [
-  { id: '1', title: 'Tưới nước Lúa Đài Thơm', time: '15:30 - Hôm nay', type: 'water', repeat: 'daily' },
-  { id: '2', title: 'Bón phân Cà chua', time: '08:00 - Ngày mai', type: 'fertilizer', repeat: 'none' },
-];
+import { useState, useEffect } from 'react';
+import { api } from '../src/api/client';
 
 export default function RemindersScreen() {
   const router = useRouter();
+  const [reminders, setReminders] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchReminders = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get('/reminders');
+      if (res.data.success) {
+        setReminders(res.data.data);
+      }
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReminders();
+  }, []);
+
+  const handleComplete = async (id: string) => {
+    try {
+      const res = await api.patch(`/reminders/${id}/complete`);
+      if (res.data.success) {
+        Alert.alert('Thành công', 'Đã hoàn thành nhắc nhở chăm sóc!');
+        fetchReminders();
+      }
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể cập nhật nhắc nhở.');
+    }
+  };
+
+  const handleCancel = async (id: string) => {
+    Alert.alert('Xác nhận', 'Bạn muốn hủy nhắc nhở này?', [
+      { text: 'Quay lại', style: 'cancel' },
+      { text: 'Xác nhận hủy', style: 'destructive', onPress: async () => {
+          try {
+            await api.patch(`/reminders/${id}/cancel`);
+            Alert.alert('Thành công', 'Đã hủy nhắc nhở.');
+            fetchReminders();
+          } catch (err: any) {
+            Alert.alert('Lỗi', err.response?.data?.message || 'Không thể hủy nhắc nhở.');
+          }
+        }
+      }
+    ]);
+  };
+
+  const handleAddMockReminder = async () => {
+    try {
+      // Gọi API tạo một nhắc nhở tưới nước mẫu
+      const res = await api.post('/reminders', {
+        title: 'Tưới nước Lúa Đài Thơm (Di động)',
+        description: 'Tưới nước duy trì độ ẩm cho ruộng lúa.',
+        scheduled_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour later
+        type: 'water',
+        frequency: 'daily',
+      });
+      if (res.data.success) {
+        Alert.alert('Thành công', 'Đã tạo nhắc nhở tưới nước hàng ngày!');
+        fetchReminders();
+      }
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể tạo nhắc nhở.');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <PageHeader title="Nhắc nhở của tôi" />
       
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={fetchReminders} />}
+      >
         
         {/* Mascot Banner */}
         <View style={styles.banner}>
@@ -33,52 +101,60 @@ export default function RemindersScreen() {
 
         <Text style={styles.sectionTitle}>Sắp tới</Text>
 
-        <View style={styles.listContainer}>
-          {mockReminders.map(item => (
-            <View key={item.id} style={styles.reminderCard}>
-              <View style={styles.iconContainer}>
-                <Droplets size={24} color="#3B82F6" />
-              </View>
-              
-              <View style={styles.infoContainer}>
-                <Text style={styles.reminderTitle} numberOfLines={1}>{item.title}</Text>
-                <View style={styles.timeRow}>
-                  <Clock size={12} color={colors.textMain + '80'} />
-                  <Text style={styles.timeText}>{item.time}</Text>
+        {isLoading ? (
+          <ActivityIndicator size="large" color={colors.primary} />
+        ) : reminders.length === 0 ? (
+          <Text style={{ textAlign: 'center', marginTop: 24, color: colors.textMuted }}>Không có nhắc nhở nào sắp tới.</Text>
+        ) : (
+          <View style={styles.listContainer}>
+            {reminders.map(item => (
+              <View key={item._id} style={styles.reminderCard}>
+                <View style={styles.iconContainer}>
+                  <Droplets size={24} color="#3B82F6" />
                 </View>
                 
-                <View style={styles.tagsRow}>
-                  <View style={styles.tagPush}>
-                    <Text style={styles.tagPushText}>Push</Text>
+                <View style={styles.infoContainer}>
+                  <Text style={styles.reminderTitle} numberOfLines={1}>{item.title}</Text>
+                  <View style={styles.timeRow}>
+                    <Clock size={12} color={colors.textMain + '80'} />
+                    <Text style={styles.timeText}>{new Date(item.scheduled_at).toLocaleString('vi-VN')}</Text>
                   </View>
-                  {item.repeat !== 'none' && (
-                    <View style={styles.tagRepeat}>
-                      <Repeat size={10} color="#B45309" />
-                      <Text style={styles.tagRepeatText}>Hàng ngày</Text>
+                  
+                  <View style={styles.tagsRow}>
+                    <View style={styles.tagPush}>
+                      <Text style={styles.tagPushText}>{item.status}</Text>
                     </View>
-                  )}
+                    {item.frequency !== 'none' && (
+                      <View style={styles.tagRepeat}>
+                        <Repeat size={10} color="#B45309" />
+                        <Text style={styles.tagRepeatText}>Hàng ngày</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
 
-              <View style={styles.actionsContainer}>
-                <Button 
-                  title="Xong" 
-                  onPress={() => {}} 
-                  style={styles.doneBtn}
-                />
-                <TouchableOpacity style={styles.cancelBtn}>
-                  <Trash2 size={12} color={colors.error} />
-                  <Text style={styles.cancelText}>Hủy</Text>
-                </TouchableOpacity>
+                {item.status === 'pending' && (
+                  <View style={styles.actionsContainer}>
+                    <Button 
+                      title="Xong" 
+                      onPress={() => handleComplete(item._id)} 
+                      style={styles.doneBtn}
+                    />
+                    <TouchableOpacity style={styles.cancelBtn} onPress={() => handleCancel(item._id)}>
+                      <Trash2 size={12} color={colors.error} />
+                      <Text style={styles.cancelText}>Hủy</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
 
       </ScrollView>
 
-      {/* FAB */}
-      <TouchableOpacity style={styles.fab} activeOpacity={0.8} onPress={() => {}}>
+      {/* FAB: Thêm nhắc nhở mẫu nhanh */}
+      <TouchableOpacity style={styles.fab} activeOpacity={0.8} onPress={handleAddMockReminder}>
         <Plus color={colors.bgSurface} size={32} />
       </TouchableOpacity>
     </SafeAreaView>
@@ -196,6 +272,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     color: colors.textMain + 'B0',
+    textTransform: 'uppercase',
   },
   tagRepeat: {
     flexDirection: 'row',

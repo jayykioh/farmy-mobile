@@ -1,16 +1,12 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
 import { PageHeader } from '../src/components/PageHeader';
 import { Star, Lock } from 'lucide-react-native';
-import { useState } from 'react';
-
-const mockItems = [
-  { id: '1', name: 'Mũ rơm nông dân', price: 100, category: 'HAT', requiredLevel: 1, owned: true, equipped: true, img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDsbCWDiuGTF5iEwK2O9pm1CMMzFdWx0hc4ellAPSIR0Fd0W04AaUk2McKFTBpkyt54F7qbz59AxRVm00X7l_paTxXsYAhKb0DJ2UtW18iwcftc8NpvHSUtky7QtZ3LYS_Jvnwzb_uyHj7Snd_GZJ5qRjx6kGvs2Y-yZafDMesEmvqIG9HZ3b06V39xa_0py0IGkepiBfpB_L-Nfe8YfQg-4VDdxhF78xd9seUk1RNYLfCuF3wEdwSvukiK2uu0wpN98-IjRJs9NRru' },
-  { id: '2', name: 'Nón lá', price: 250, category: 'HAT', requiredLevel: 5, owned: false, equipped: false, img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCzBjvc2DnHkU5kbDFMSwtv8BlsaiWbQudALcZbuYhJy8SPHAFmGOkRmm-l4KC5VSOUk3atkwm00nuuz6Z2ZTKRVAhQjwV3GoTebXZfy1o2eAujMFFziKt-smBZYu6Z5Y1OVRnyLwO5JVfFyoo6FbCJJv1cckKZSMi83YrGWZ_7RpHiVKx2k0l6Z-YKvzETxUD2sLP4FyEfy0ttKsrdDJkHT2IBS62yJLWXk_d0dEaJPZWKTLQH6XjW6IIrIL0y_y0AlbCNPcThctr7' },
-  { id: '3', name: 'Vương miện', price: 1500, category: 'HAT', requiredLevel: 20, owned: false, equipped: false, img: '' },
-];
+import { useState, useEffect } from 'react';
+import { usePetStatus } from '../src/hooks/usePet';
+import { api } from '../src/api/client';
 
 export default function ShopScreen() {
   const categories = [
@@ -21,11 +17,62 @@ export default function ShopScreen() {
   ];
 
   const [activeCategory, setActiveCategory] = useState('HAT');
-  const level = 12;
-  const xp = 850;
+  const [items, setItems] = useState<any[]>([]);
+  const [isLoadingItems, setIsLoadingItems] = useState(true);
+  
+  const { data: petStatus, refetch: refetchPet } = usePetStatus();
+  
+  const level = petStatus?.level || 1;
+  const xp = petStatus?.exp || 0;
 
-  const filteredItems = mockItems.filter(item => item.category === activeCategory);
-  const equippedItem = filteredItems.find(item => item.equipped);
+  const fetchItems = async () => {
+    try {
+      setIsLoadingItems(true);
+      const res = await api.get('/shop/items');
+      if (res.data.success) {
+        setItems(res.data.data);
+      }
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setIsLoadingItems(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  const handleRefresh = async () => {
+    await Promise.all([fetchItems(), refetchPet()]);
+  };
+
+  const handleBuy = async (itemId: string) => {
+    try {
+      const res = await api.post('/shop/buy', { itemId });
+      if (res.data.success) {
+        Alert.alert('Thành công', 'Mua phụ kiện thành công');
+        handleRefresh();
+      }
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể mua vật phẩm.');
+    }
+  };
+
+  const handleEquip = async (itemId: string) => {
+    try {
+      const res = await api.post('/shop/equip', { itemId });
+      if (res.data.success) {
+        Alert.alert('Thành công', 'Thay đổi trang bị thành công');
+        handleRefresh();
+      }
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể trang bị vật phẩm.');
+    }
+  };
+
+  const filteredItems = items.filter(item => item.category === activeCategory);
+  const equippedItem = items.find(item => item.equipped);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -58,7 +105,11 @@ export default function ShopScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={isLoadingItems} onRefresh={handleRefresh} />}
+      >
         
         {/* Preview Card */}
         <View style={styles.previewCard}>
@@ -75,60 +126,66 @@ export default function ShopScreen() {
         </View>
 
         {/* Items Grid */}
-        <View style={styles.gridContainer}>
-          {filteredItems.map(item => {
-            const isLocked = level < item.requiredLevel;
-            const canAfford = xp >= item.price;
+        {isLoadingItems ? (
+          <ActivityIndicator size="large" color={colors.primary} />
+        ) : filteredItems.length === 0 ? (
+          <Text style={{ textAlign: 'center', marginTop: 24, color: colors.textMuted }}>Không có phụ phẩm nào thuộc mục này.</Text>
+        ) : (
+          <View style={styles.gridContainer}>
+            {filteredItems.map(item => {
+              const isLocked = level < item.requiredLevel;
+              const canAfford = xp >= item.price;
 
-            return (
-              <View key={item.id} style={[styles.itemCard, item.equipped ? styles.itemCardEquipped : null]}>
-                <View style={styles.itemImageContainer}>
-                  {!isLocked ? (
-                    item.img ? (
-                      <Image source={{ uri: item.img }} style={styles.itemImage} />
+              return (
+                <View key={item._id} style={[styles.itemCard, item.equipped ? styles.itemCardEquipped : null]}>
+                  <View style={styles.itemImageContainer}>
+                    {!isLocked ? (
+                      item.img ? (
+                        <Image source={{ uri: item.img }} style={styles.itemImage} />
+                      ) : (
+                        <Text style={{ fontSize: 40 }}>👑</Text>
+                      )
                     ) : (
-                      <Text style={{ fontSize: 40 }}>👑</Text>
-                    )
+                      <View style={styles.lockedContainer}>
+                        <Lock size={24} color={colors.borderMain} />
+                        <Text style={styles.lockedText}>Cấp {item.requiredLevel}</Text>
+                      </View>
+                    )}
+                  </View>
+                  
+                  <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+                  
+                  <View style={styles.priceTag}>
+                    <Star size={12} color="#EAB308" fill="#EAB308" />
+                    <Text style={styles.priceText}>{item.price}</Text>
+                  </View>
+
+                  {item.equipped ? (
+                    <TouchableOpacity style={[styles.actionBtn, styles.btnEquipped]}>
+                      <Text style={styles.btnTextEquipped}>Đã trang bị</Text>
+                    </TouchableOpacity>
+                  ) : item.owned ? (
+                    <TouchableOpacity style={[styles.actionBtn, styles.btnOwned]} onPress={() => handleEquip(item._id)}>
+                      <Text style={styles.btnTextOwned}>Mặc thử</Text>
+                    </TouchableOpacity>
+                  ) : isLocked ? (
+                    <View style={[styles.actionBtn, styles.btnLocked]}>
+                      <Text style={styles.btnTextLocked}>Khóa</Text>
+                    </View>
+                  ) : canAfford ? (
+                    <TouchableOpacity style={[styles.actionBtn, styles.btnBuy]} onPress={() => handleBuy(item._id)}>
+                      <Text style={styles.btnTextBuy}>Mua ngay</Text>
+                    </TouchableOpacity>
                   ) : (
-                    <View style={styles.lockedContainer}>
-                      <Lock size={24} color={colors.borderMain} />
-                      <Text style={styles.lockedText}>Cấp {item.requiredLevel}</Text>
+                    <View style={[styles.actionBtn, styles.btnLocked]}>
+                      <Text style={styles.btnTextLocked}>Thiếu XP</Text>
                     </View>
                   )}
                 </View>
-                
-                <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-                
-                <View style={styles.priceTag}>
-                  <Star size={12} color="#EAB308" fill="#EAB308" />
-                  <Text style={styles.priceText}>{item.price}</Text>
-                </View>
-
-                {item.equipped ? (
-                  <TouchableOpacity style={[styles.actionBtn, styles.btnEquipped]}>
-                    <Text style={styles.btnTextEquipped}>Đã trang bị</Text>
-                  </TouchableOpacity>
-                ) : item.owned ? (
-                  <TouchableOpacity style={[styles.actionBtn, styles.btnOwned]}>
-                    <Text style={styles.btnTextOwned}>Mặc thử</Text>
-                  </TouchableOpacity>
-                ) : isLocked ? (
-                  <View style={[styles.actionBtn, styles.btnLocked]}>
-                    <Text style={styles.btnTextLocked}>Khóa</Text>
-                  </View>
-                ) : canAfford ? (
-                  <TouchableOpacity style={[styles.actionBtn, styles.btnBuy]}>
-                    <Text style={styles.btnTextBuy}>Mua ngay</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={[styles.actionBtn, styles.btnLocked]}>
-                    <Text style={styles.btnTextLocked}>Thiếu XP</Text>
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </View>
+              );
+            })}
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -138,7 +195,7 @@ export default function ShopScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d0e5fa', // Match web gradient start
+    backgroundColor: '#d0e5fa',
   },
   xpBadge: {
     flexDirection: 'row',
@@ -166,7 +223,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#854D0E',
-    fontFamily: 'Courier',
   },
   categoryWrapper: {
     marginBottom: 16,
@@ -329,7 +385,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     color: '#854D0E',
-    fontFamily: 'Courier',
   },
   actionBtn: {
     width: '100%',

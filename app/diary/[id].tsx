@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -37,6 +37,34 @@ export default function DiaryHistoryScreen() {
     refetchLogs();
   };
 
+  const handleArchive = async () => {
+    try {
+      await api.put(`/diaries/${id}`, { status: 'archived' });
+      Alert.alert('Thành công', 'Đã lưu trữ vụ mùa.', [
+        { text: 'OK', onPress: () => router.replace('/(tabs)/diary') }
+      ]);
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể lưu trữ vụ mùa.');
+    }
+  };
+
+  const handleDelete = async () => {
+    Alert.alert('Xác nhận', 'Bạn có chắc chắn muốn xóa vụ mùa này cùng toàn bộ nhật ký?', [
+      { text: 'Hủy', style: 'cancel' },
+      { text: 'Xóa', style: 'destructive', onPress: async () => {
+          try {
+            await api.delete(`/diaries/${id}`);
+            Alert.alert('Thành công', 'Đã xóa vụ mùa.', [
+              { text: 'OK', onPress: () => router.replace('/(tabs)/diary') }
+            ]);
+          } catch (err: any) {
+            Alert.alert('Lỗi', err.response?.data?.message || 'Không thể xóa vụ mùa.');
+          }
+        }
+      }
+    ]);
+  };
+
   if (diaryLoading) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -57,11 +85,11 @@ export default function DiaryHistoryScreen() {
         
         {/* Top actions */}
         <View style={styles.topActions}>
-          <TouchableOpacity style={styles.outlineBtn}>
+          <TouchableOpacity style={styles.outlineBtn} onPress={handleArchive}>
             <Archive size={16} color={colors.primary} />
             <Text style={styles.outlineBtnText}>Lưu trữ</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.outlineBtn, styles.dangerBtn]}>
+          <TouchableOpacity style={[styles.outlineBtn, styles.dangerBtn]} onPress={handleDelete}>
             <Trash2 size={16} color={colors.error} />
             <Text style={[styles.outlineBtnText, { color: colors.error }]}>Xóa</Text>
           </TouchableOpacity>
