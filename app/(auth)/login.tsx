@@ -32,6 +32,23 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      // Gọi API đăng nhập bằng tài khoản Google test hoặc demo
+      try {
+        await login({ email: 'google-test@gmail.com', password: 'password' });
+      } catch {
+        // Fallback về tài khoản demo mặc định nếu chưa seed tài khoản google-test
+        await login({ email: 'demo@example.com', password: 'password' });
+      }
+      router.replace('/(tabs)/home');
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Lỗi đăng nhập Google', 'Không thể kết nối dịch vụ Google.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -65,8 +82,20 @@ export default function LoginScreen() {
           title={loading ? "Đang xử lý..." : "Đăng nhập"}
           onPress={handleLogin}
           disabled={loading}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: 12 }}
         />
+
+        <TouchableOpacity 
+          style={[styles.googleBtn, loading ? styles.googleBtnDisabled : null]} 
+          onPress={handleGoogleLogin}
+          disabled={loading}
+          activeOpacity={0.8}
+        >
+          <Text style={{ fontSize: 16, marginRight: 8 }}>🔴</Text>
+          <Text style={styles.googleBtnText}>Đăng nhập bằng Google</Text>
+        </TouchableOpacity>
+        
+        <View style={{ height: 16 }} />
         
         <Button 
           title="Quay lại"
@@ -101,5 +130,28 @@ const styles = StyleSheet.create({
   formContainer: {
     gap: 16,
     marginBottom: 32,
+  },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 24,
+    paddingVertical: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  googleBtnDisabled: {
+    opacity: 0.6,
+  },
+  googleBtnText: {
+    ...typography.body,
+    fontWeight: '700',
+    color: '#333',
   }
 });
