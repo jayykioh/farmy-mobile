@@ -1,17 +1,27 @@
 export const colors = {
-  primary: '#10B981', // Emerald 500
-  primaryLight: '#34D399',
-  primaryDark: '#059669',
-  secondary: '#F59E0B', // Amber 500
-  secondaryLight: '#FBBF24',
-  secondaryDark: '#D97706',
-  background: '#F9FAFB', // Gray 50
-  surface: '#FFFFFF',
-  text: '#111827', // Gray 900
-  textMuted: '#6B7280', // Gray 500
-  border: '#E5E7EB', // Gray 200
-  error: '#EF4444', // Red 500
-  success: '#10B981', // Emerald 500
-  warning: '#F59E0B', // Amber 500
-  info: '#3B82F6', // Blue 500
+  primary: '#08a855',
+  primaryContainer: '#006d35',
+  primaryLight: '#5adf85',
+  primaryLightest: '#79fc9e',
+  
+  secondary: '#785900',
+  secondaryContainer: '#fabd00',
+  secondaryDark: '#b98b00',
+  secondaryLight: '#ffdf9e',
+  
+  bgMain: '#f1fcf1',
+  bgSurface: '#ffffff',
+  bgSurface1: '#ebf7eb',
+  bgSurface2: '#e5f1e5',
+  
+  textMain: '#141e17',
+  textSecondary: '#3d4a3e',
+  textMuted: '#58605a',
+  textH: '#141e17',
+  
+  borderMain: '#bccabb',
+  outlineMain: '#6d7b6d',
+
+  error: '#ba1a1a',
+  errorContainer: '#ffdad6',
 };

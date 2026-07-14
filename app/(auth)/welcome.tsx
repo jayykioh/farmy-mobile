@@ -1,9 +1,10 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Sprout } from 'lucide-react-native';
+import { Button } from '../../src/components/Button';
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -19,12 +20,16 @@ export default function WelcomeScreen() {
       </View>
       
       <View style={styles.footer}>
-        <TouchableOpacity 
-          style={styles.primaryButton}
-          onPress={() => router.push('/(auth)/login')}
-        >
-          <Text style={styles.buttonText}>Bắt đầu ngay</Text>
-        </TouchableOpacity>
+        <Button 
+          title="Đăng nhập" 
+          onPress={() => router.push('/(auth)/login')} 
+          style={{ marginBottom: 16 }}
+        />
+        <Button 
+          title="Đăng ký tài khoản" 
+          variant="outline"
+          onPress={() => router.push('/(auth)/register')} 
+        />
       </View>
     </SafeAreaView>
   );
@@ -33,7 +38,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.bgMain,
   },
   content: {
     flex: 1,
@@ -52,7 +57,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h1,
-    color: colors.primaryDark,
+    color: colors.textH,
     marginBottom: 8,
   },
   subtitle: {
@@ -63,19 +68,5 @@ const styles = StyleSheet.create({
   footer: {
     padding: 24,
     paddingBottom: 48,
-  },
-  primaryButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  buttonText: {
-    ...typography.buttonText,
   }
 });

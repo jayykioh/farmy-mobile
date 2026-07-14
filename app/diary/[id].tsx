@@ -1,0 +1,410 @@
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { typography } from '../../src/theme/typography';
+import { colors } from '../../src/theme/colors';
+import { PageHeader } from '../../src/components/PageHeader';
+import { Archive, Trash2, Activity, Clock, CheckCircle2, Droplets, Leaf, Shield, Plus } from 'lucide-react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useDiaryDetail, useDiaryLogs } from '../../src/hooks/useDiary';
+
+export default function DiaryHistoryScreen() {
+  const { id } = useLocalSearchParams();
+  const router = useRouter();
+  
+  const { data: diary, isLoading: diaryLoading, refetch: refetchDiary } = useDiaryDetail(id as string);
+  const { data: logs, isLoading: logsLoading, refetch: refetchLogs } = useDiaryLogs(id as string);
+
+  const getIcon = (type: string) => {
+    switch(type) {
+      case 'water': return <Droplets size={24} color="#3B82F6" />;
+      case 'fertilizer': return <Leaf size={24} color="#10B981" />;
+      case 'pest': return <Shield size={24} color="#F97316" />;
+      default: return <Activity size={24} color={colors.primary} />;
+    }
+  };
+
+  const getBgColor = (type: string) => {
+    switch(type) {
+      case 'water': return '#EFF6FF';
+      case 'fertilizer': return '#ECFDF5';
+      case 'pest': return '#FFF7ED';
+      default: return colors.primary + '15';
+    }
+  };
+
+  const handleRefresh = () => {
+    refetchDiary();
+    refetchLogs();
+  };
+
+  if (diaryLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <PageHeader title="Đang tải..." />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <PageHeader title={`Lịch sử: ${diary?.crop_type || 'Mùa vụ'}`} />
+
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={diaryLoading || logsLoading} onRefresh={handleRefresh} />}
+      >
+        
+        {/* Top actions */}
+        <View style={styles.topActions}>
+          <TouchableOpacity style={styles.outlineBtn}>
+            <Archive size={16} color={colors.primary} />
+            <Text style={styles.outlineBtnText}>Lưu trữ</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.outlineBtn, styles.dangerBtn]}>
+            <Trash2 size={16} color={colors.error} />
+            <Text style={[styles.outlineBtnText, { color: colors.error }]}>Xóa</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Mascot Encouragement */}
+        <View style={styles.mascotBanner}>
+          <View style={styles.mascotAvatar}>
+            <Text style={{ fontSize: 32 }}>🌱</Text>
+          </View>
+          <Text style={styles.mascotText}>
+            Bạn đang duy trì chăm sóc cây trồng đều đặn. Tuyệt vời!
+          </Text>
+        </View>
+
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          <View style={[styles.statCard, styles.statCardFull]}>
+            <View style={styles.statHeader}>
+              <Text style={styles.statTitle}>Chăm sóc tuần này</Text>
+              <View style={styles.badgePill}>
+                <Text style={styles.badgeText}>Hiện tại</Text>
+              </View>
+            </View>
+            
+            <View style={styles.chartArea}>
+              {['T2','T3','T4','T5','T6','T7','CN'].map((day, idx) => (
+                <View key={day} style={styles.chartCol}>
+                  <View style={styles.chartBarBg}>
+                    <View style={[styles.chartBarFill, { height: `${30 + idx * 10}%` }]} />
+                  </View>
+                  <Text style={styles.chartDay}>{day}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View style={[styles.statCard, { flex: 1, marginRight: 8 }]}>
+            <Clock size={32} color={colors.primary} style={{ marginBottom: 8 }} />
+            <Text style={styles.statLabel}>Bắt đầu</Text>
+            <Text style={styles.statValueMain}>{diary ? new Date(diary.start_date).toLocaleDateString('vi-VN') : '-'}</Text>
+          </View>
+
+          <View style={{ flex: 1, gap: 8 }}>
+            <View style={styles.statCardSmall}>
+              <Activity size={24} color={colors.secondary} style={{ marginBottom: 4 }} />
+              <Text style={styles.statLabel}>Tổng hoạt động</Text>
+              <Text style={styles.statValue}>{logs?.length || 0}</Text>
+            </View>
+            <View style={styles.statCardSmall}>
+              <CheckCircle2 size={24} color="#10B981" style={{ marginBottom: 4 }} />
+              <Text style={styles.statLabel}>Trạng thái</Text>
+              <Text style={[styles.statValue, { fontSize: 14, textTransform: 'uppercase' }]}>
+                {diary?.status === 'active' ? 'Đang trồng' : 'Đã thu'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Activity Logs */}
+        <Text style={styles.sectionTitle}>Hoạt động chăm sóc</Text>
+        <View style={styles.logsContainer}>
+          {logs?.map(log => (
+            <View key={log._id} style={styles.logCard}>
+              <View style={[styles.logIcon, { backgroundColor: getBgColor(log.activity_type) }]}>
+                {getIcon(log.activity_type)}
+              </View>
+              
+              <View style={styles.logInfo}>
+                <Text style={styles.logType}>
+                  {log.activity_type === 'water' ? 'Tưới nước' : log.activity_type === 'fertilizer' ? 'Bón phân' : 'Phun thuốc'}
+                </Text>
+                <Text style={styles.logContent}>{log.content}</Text>
+              </View>
+
+              <View style={styles.logMeta}>
+                <Text style={styles.logDate}>{new Date(log.created_at).toLocaleDateString('vi-VN')}</Text>
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusText}>Hoàn tất</Text>
+                </View>
+              </View>
+            </View>
+          ))}
+          {logs?.length === 0 && (
+            <Text style={{ textAlign: 'center', marginTop: 20, color: colors.textMuted }}>Chưa có hoạt động nào</Text>
+          )}
+        </View>
+
+      </ScrollView>
+
+      {/* FAB */}
+      <TouchableOpacity 
+        style={styles.fab} 
+        activeOpacity={0.8} 
+        onPress={() => router.push('/diary/create')}
+      >
+        <Plus color={colors.bgSurface} size={32} />
+      </TouchableOpacity>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bgSurface1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 100,
+  },
+  topActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginBottom: 16,
+  },
+  outlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.primary + '50',
+    backgroundColor: colors.bgSurface,
+    gap: 6,
+  },
+  outlineBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  dangerBtn: {
+    borderColor: colors.error + '50',
+    backgroundColor: colors.error + '10',
+  },
+  mascotBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgSurface,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '50',
+    borderRadius: 20,
+    padding: 16,
+    gap: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  mascotAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.bgSurface1,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '30',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mascotText: {
+    flex: 1,
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.textMain,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 24,
+  },
+  statCard: {
+    backgroundColor: colors.bgSurface,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '50',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statCardFull: {
+    width: '100%',
+    marginBottom: 16,
+    alignItems: 'stretch',
+  },
+  statHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  statTitle: {
+    ...typography.h3,
+  },
+  badgePill: {
+    backgroundColor: colors.secondaryLight + '30',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.secondaryDark,
+  },
+  chartArea: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    height: 120,
+    backgroundColor: colors.bgSurface1,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '30',
+  },
+  chartCol: {
+    alignItems: 'center',
+    height: '100%',
+    width: 24,
+  },
+  chartBarBg: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: colors.bgSurface,
+    borderRadius: 12,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  chartBarFill: {
+    width: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+  },
+  chartDay: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.textMain + '80',
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMain + '80',
+    marginBottom: 4,
+  },
+  statValueMain: {
+    ...typography.h2,
+    color: colors.textMain,
+  },
+  statCardSmall: {
+    backgroundColor: colors.bgSurface,
+    borderRadius: 20,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '50',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.textMain,
+  },
+  sectionTitle: {
+    ...typography.h2,
+    marginBottom: 16,
+  },
+  logsContainer: {
+    gap: 12,
+  },
+  logCard: {
+    backgroundColor: colors.bgSurface,
+    borderRadius: 20,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '50',
+  },
+  logIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logInfo: {
+    flex: 1,
+  },
+  logType: {
+    ...typography.body,
+    fontWeight: '800',
+  },
+  logContent: {
+    ...typography.caption,
+    color: colors.textMain + 'CC',
+    marginTop: 2,
+  },
+  logMeta: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  logDate: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.textMain + '80',
+  },
+  statusPill: {
+    backgroundColor: colors.primary + '15',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.primaryDark,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 32,
+    right: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  }
+});

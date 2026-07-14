@@ -1,34 +1,36 @@
-import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../src/store/authStore';
 import { Button } from '../../src/components/Button';
 import { Input } from '../../src/components/Input';
-import { Mail, Lock } from 'lucide-react-native';
+import { Mail, Lock, User } from 'lucide-react-native';
 import { PageHeader } from '../../src/components/PageHeader';
 import { useState } from 'react';
+import { useAuthStore } from '../../src/store/authStore';
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const router = useRouter();
-  const { login } = useAuthStore();
+  const { registerUser } = useAuthStore();
+  
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ email và mật khẩu');
+  const handleRegister = async () => {
+    if (!name || !email || !password) {
+      Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin');
       return;
     }
     try {
       setLoading(true);
-      await login({ email, password });
+      await registerUser({ name, email, password, role: 'farmer' });
       router.replace('/(tabs)/home');
     } catch (error: any) {
       console.error(error);
-      Alert.alert('Lỗi đăng nhập', error.response?.data?.message || 'Không thể đăng nhập. Vui lòng kiểm tra lại thông tin.');
+      Alert.alert('Lỗi đăng ký', error.response?.data?.message || 'Không thể đăng ký tài khoản.');
     } finally {
       setLoading(false);
     }
@@ -36,12 +38,20 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
-      <PageHeader title="Đăng nhập" />
+      <PageHeader title="Đăng ký" />
       <View style={styles.content}>
-        <Text style={styles.title}>Chào mừng trở lại!</Text>
-        <Text style={styles.subtitle}>Đăng nhập để tiếp tục quản lý nông trại của bạn</Text>
+        <Text style={styles.title}>Tạo tài khoản</Text>
+        <Text style={styles.subtitle}>Tham gia cùng FarmDiaries ngay hôm nay</Text>
         
         <View style={styles.formContainer}>
+          <Input 
+            label="Họ và tên"
+            placeholder="Nhập họ và tên" 
+            autoCapitalize="words"
+            value={name}
+            onChangeText={setName}
+            icon={<User color={colors.textMuted} size={20} />}
+          />
           <Input 
             label="Email"
             placeholder="Nhập địa chỉ email" 
@@ -53,7 +63,7 @@ export default function LoginScreen() {
           />
           <Input 
             label="Mật khẩu"
-            placeholder="Nhập mật khẩu" 
+            placeholder="Tạo mật khẩu" 
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -62,14 +72,14 @@ export default function LoginScreen() {
         </View>
 
         <Button 
-          title={loading ? "Đang xử lý..." : "Đăng nhập"}
-          onPress={handleLogin}
+          title={loading ? "Đang xử lý..." : "Đăng ký"}
+          onPress={handleRegister}
           disabled={loading}
           style={{ marginBottom: 16 }}
         />
         
         <Button 
-          title="Quay lại"
+          title="Đã có tài khoản? Đăng nhập"
           variant="outline"
           disabled={loading}
           onPress={() => router.back()}

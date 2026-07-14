@@ -4,26 +4,28 @@ import { colors } from './colors';
 export const typography = StyleSheet.create({
   h1: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.text,
+    fontWeight: '800', // font-extrabold equivalent
+    color: colors.textH,
   },
   h2: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
+    fontWeight: '800',
+    color: colors.textH,
   },
   h3: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text,
+    fontWeight: '700',
+    color: colors.textH,
   },
   body: {
     fontSize: 16,
-    color: colors.text,
+    color: colors.textMain,
+    lineHeight: 24,
   },
   bodySmall: {
     fontSize: 14,
     color: colors.textMuted,
+    lineHeight: 20,
   },
   caption: {
     fontSize: 12,
@@ -31,7 +33,7 @@ export const typography = StyleSheet.create({
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: colors.surface,
+    fontWeight: '700',
+    color: colors.bgSurface,
   },
 });

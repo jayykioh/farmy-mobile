@@ -18,6 +18,8 @@ interface AuthState {
   checkAuth: () => Promise<void>;
   setSession: (user: User, accessToken: string) => Promise<void>;
   logout: () => Promise<void>;
+  login: (payload: any) => Promise<void>;
+  registerUser: (payload: any) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -49,7 +51,21 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setSession: async (user: User, accessToken: string) => {
     await AsyncStorage.setItem('access_token', accessToken);
-    set({ user, isAuthenticated: true });
+    set({ user, isAuthenticated: true, isLoading: false });
+  },
+
+  login: async (payload) => {
+    const { data } = await api.post('/auth/login', payload);
+    const { access_token, user } = data.data;
+    await AsyncStorage.setItem('access_token', access_token);
+    set({ user, isAuthenticated: true, isLoading: false });
+  },
+
+  registerUser: async (payload) => {
+    const { data } = await api.post('/auth/register', payload);
+    const { access_token, user } = data.data;
+    await AsyncStorage.setItem('access_token', access_token);
+    set({ user, isAuthenticated: true, isLoading: false });
   },
 
   logout: async () => {
