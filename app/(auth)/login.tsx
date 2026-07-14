@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
