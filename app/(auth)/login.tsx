@@ -42,8 +42,8 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      // Mở trình duyệt đến cổng Auth Google của NestJS backend dựa trên biến môi trường
-      const authUrl = `${api.defaults.baseURL}/auth/google`;
+      // Mở trình duyệt đến cổng Auth Google của NestJS backend dựa trên biến môi trường và truyền state=mobile
+      const authUrl = `${api.defaults.baseURL}/auth/google?state=mobile`;
       await WebBrowser.openBrowserAsync(authUrl);
     } catch (error: any) {
       console.error(error);
