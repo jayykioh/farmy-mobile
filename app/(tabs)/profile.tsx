@@ -101,12 +101,15 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.settingsList}>
-            <TouchableOpacity style={styles.settingItem}>
+            <TouchableOpacity 
+              style={styles.settingItem}
+              onPress={() => router.push('/profile/info')}
+            >
               <View style={styles.settingLeft}>
                 <View style={styles.settingIconBg}>
                   <User size={20} color={colors.textMain + 'B0'} />
                 </View>
-                <Text style={styles.settingText}>Personal Information</Text>
+                <Text style={styles.settingText}>Thông tin cá nhân</Text>
               </View>
               <ChevronRight size={20} color={colors.borderMain} />
             </TouchableOpacity>
