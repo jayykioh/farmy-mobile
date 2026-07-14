@@ -37,13 +37,8 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      // Gọi API đăng nhập bằng tài khoản Google test hoặc demo
-      try {
-        await login({ email: 'google-test@gmail.com', password: 'password' });
-      } catch {
-        // Fallback về tài khoản demo mặc định nếu chưa seed tài khoản google-test
-        await login({ email: 'demo@example.com', password: 'password' });
-      }
+      // Gọi API đăng nhập bằng tài khoản seeded của backend
+      await login({ email: 'user@farmy.com', password: 'UserPassword123' });
       router.replace('/(tabs)/home');
     } catch (error: any) {
       console.error(error);
