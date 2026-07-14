@@ -32,6 +32,8 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
