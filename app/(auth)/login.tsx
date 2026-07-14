@@ -11,6 +11,7 @@ import { Mail, Lock } from 'lucide-react-native';
 import { PageHeader } from '../../src/components/PageHeader';
 import { useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 // Đăng ký WebBrowser
 WebBrowser.maybeCompleteAuthSession();
@@ -42,8 +43,11 @@ export default function LoginScreen() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      // Mở trình duyệt đến cổng Auth Google của NestJS backend dựa trên biến môi trường và truyền state=mobile
-      const authUrl = `${api.defaults.baseURL}/auth/google?state=mobile`;
+      // Tạo link callback động (exp://... nếu chạy qua Expo Go, farmy://... nếu chạy standalone)
+      const redirectUrl = Linking.createURL('oauth-callback');
+      console.log('Dynamic redirect URL:', redirectUrl);
+      
+      const authUrl = `${api.defaults.baseURL}/auth/google?state=${encodeURIComponent(redirectUrl)}`;
       await WebBrowser.openBrowserAsync(authUrl);
     } catch (error: any) {
       console.error(error);
