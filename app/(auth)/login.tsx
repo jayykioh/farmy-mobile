@@ -18,7 +18,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useAuthStore();
+  const { login, setSession } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,23 @@ export default function LoginScreen() {
       console.log('Dynamic redirect URL:', redirectUrl);
       
       const authUrl = `${api.defaults.baseURL}/auth/google?state=${encodeURIComponent(redirectUrl)}`;
-      await WebBrowser.openBrowserAsync(authUrl);
+      
+      // Sử dụng openAuthSessionAsync để trình duyệt tự động đóng lại khi nhận link redirect
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+      
+      if (result.type === 'success' && result.url) {
+        const { queryParams } = Linking.parse(result.url);
+        if (queryParams?.accessToken) {
+          const token = queryParams.accessToken as string;
+          // Thiết lập tạm thời Authorization header để gọi API auth/me
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          const response = await api.get('/auth/me');
+          const user = response.data.data.user;
+          
+          await setSession(user, token);
+          router.replace('/(tabs)/home');
+        }
+      }
     } catch (error: any) {
       console.error(error);
       Alert.alert('Lỗi', 'Không thể mở trình duyệt đăng nhập Google.');
