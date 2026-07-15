@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 export interface Diary {
   _id: string;
   crop_type: string;
+  season?: string;
   start_date: string;
   status: 'active' | 'archived';
   health_status: string;

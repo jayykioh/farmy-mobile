@@ -76,7 +76,7 @@ export default function DiaryHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <PageHeader title={`Lịch sử: ${diary?.crop_type || 'Mùa vụ'}`} />
+      <PageHeader title={`Lịch sử: ${diary?.crop_type || 'Mùa vụ'} ${diary?.season ? `(${diary.season})` : ''}`} />
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent} 
