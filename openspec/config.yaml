@@ -1,0 +1,6 @@
+project_name: farmy-mobile
+platform: mobile
+version: 1.0.0
+description: Spec configurations for Farmy Mobile App
+specs_dir: ./specs
+changes_dir: ./changes
