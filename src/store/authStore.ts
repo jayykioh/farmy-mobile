@@ -8,7 +8,7 @@ export interface User {
   name: string;
   role: string;
   farmId?: string;
-  hasCompletedOnboarding?: boolean;
+  onboardingCompleted?: boolean;
 }
 
 interface AuthState {
@@ -38,7 +38,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       
       const response = await api.get('/auth/me');
       set({
-        user: response.data.data.user,
+        user: response.data.data,
         isAuthenticated: true,
         isLoading: false,
       });

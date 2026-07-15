@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -66,7 +66,7 @@ export default function DiaryScreen() {
                   </Text>
                 </View>
                 <View>
-                  <Text style={styles.cropName}>{diary.crop_type}</Text>
+                  <Text style={styles.cropName}>{diary.crop_type} {diary.season ? `(${diary.season})` : ''}</Text>
                   <Text style={styles.startDate}>Bắt đầu: {new Date(diary.start_date).toLocaleDateString('vi-VN')}</Text>
                 </View>
               </View>
@@ -92,7 +92,17 @@ export default function DiaryScreen() {
       <TouchableOpacity 
         style={styles.fab} 
         activeOpacity={0.8}
-        onPress={() => router.push('/diary/create')}
+        onPress={() => {
+          Alert.alert(
+            'Thêm mới',
+            'Bạn muốn thêm gì?',
+            [
+              { text: '🌱 Bắt đầu vụ mùa mới', onPress: () => router.push('/diary/new-cycle') },
+              { text: '📝 Viết nhật ký hôm nay', onPress: () => router.push('/diary/create') },
+              { text: 'Hủy', style: 'cancel' }
+            ]
+          );
+        }}
       >
         <Plus color={colors.bgSurface} size={32} />
       </TouchableOpacity>

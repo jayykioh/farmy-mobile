@@ -25,7 +25,7 @@ export default function RootLayout() {
             }
           });
           if (response.data?.success && response.data?.data) {
-            await setSession(response.data.data.user, accessToken);
+            await setSession(response.data.data, accessToken);
             router.replace('/(tabs)/home');
           }
         } catch (error) {
