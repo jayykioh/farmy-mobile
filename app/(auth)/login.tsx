@@ -31,7 +31,12 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       await login({ email, password });
-      router.replace('/(tabs)/home');
+      const u = useAuthStore.getState().user;
+      if (u && !u.onboardingCompleted) {
+        router.replace('/(auth)/onboarding-1');
+      } else {
+        router.replace('/(tabs)/home');
+      }
     } catch (error: any) {
       console.error(error);
       Alert.alert('Lỗi đăng nhập', error.response?.data?.message || 'Không thể đăng nhập. Vui lòng kiểm tra lại thông tin.');
@@ -59,10 +64,14 @@ export default function LoginScreen() {
           // Thiết lập tạm thời Authorization header để gọi API auth/me
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
           const response = await api.get('/auth/me');
-          const user = response.data.data.user;
+          const user = response.data.data;
           
           await setSession(user, token);
-          router.replace('/(tabs)/home');
+          if (user && !user.onboardingCompleted) {
+            router.replace('/(auth)/onboarding-1');
+          } else {
+            router.replace('/(tabs)/home');
+          }
         }
       }
     } catch (error: any) {

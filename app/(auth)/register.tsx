@@ -27,7 +27,12 @@ export default function RegisterScreen() {
     try {
       setLoading(true);
       await registerUser({ name, email, password, role: 'farmer' });
-      router.replace('/(tabs)/home');
+      const u = useAuthStore.getState().user;
+      if (u && !u.onboardingCompleted) {
+        router.replace('/(auth)/onboarding-1');
+      } else {
+        router.replace('/(tabs)/home');
+      }
     } catch (error: any) {
       console.error(error);
       Alert.alert('Lỗi đăng ký', error.response?.data?.message || 'Không thể đăng ký tài khoản.');
