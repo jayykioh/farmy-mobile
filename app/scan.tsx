@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
@@ -7,21 +7,63 @@ import { Camera, RefreshCcw, Info } from 'lucide-react-native';
 import { useState } from 'react';
 import { Button } from '../src/components/Button';
 import { useRouter } from 'expo-router';
+import { api } from '../src/api/client';
 
 type ScanState = 'viewfinder' | 'analyzing' | 'result';
 
 export default function ScanScreen() {
   const [scanState, setScanState] = useState<ScanState>('viewfinder');
+  const [diagnosis, setDiagnosis] = useState<any>(null);
+  const [scannedImage, setScannedImage] = useState<string | null>(null);
   const router = useRouter();
 
-  const handleCapture = () => {
+  const handleCapture = async () => {
     setScanState('analyzing');
-    setTimeout(() => {
-      setScanState('result');
-    }, 2000); // mock analyzing time
+    
+    // Sử dụng ảnh lá cây thật từ Unsplash để Gemini phân tích chính xác
+    const leafImageUrl = 'https://images.unsplash.com/photo-1592150621744-aca64f48394a?q=80&w=400&auto=format&fit=crop';
+    setScannedImage(leafImageUrl);
+
+    try {
+      // 1. Tải ảnh về dưới dạng Blob
+      const response = await fetch(leafImageUrl);
+      const blob = await response.blob();
+
+      // 2. Tạo FormData
+      const formData = new FormData();
+      formData.append('crop_type', 'Lúa');
+      // React Native FormData yêu cầu object đặc biệt cho file
+      formData.append('image', {
+        uri: leafImageUrl,
+        type: 'image/jpeg',
+        name: 'plant-leaf.jpg',
+      } as any);
+
+      // 3. Gọi API quét sâu bệnh
+      const res = await api.post('/plant-scans', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (res.data.success && res.data.data) {
+        setDiagnosis(res.data.data.diagnosis);
+        setScanState('result');
+      } else {
+        throw new Error('Không nhận được dữ liệu chẩn đoán.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      const errMsg = err.response?.data?.message || err.message || 'Hệ thống quét gặp sự cố.';
+      Alert.alert('Lỗi chẩn đoán', errMsg, [
+        { text: 'Chụp lại', onPress: () => setScanState('viewfinder') }
+      ]);
+    }
   };
 
   const handleRetake = () => {
+    setDiagnosis(null);
+    setScannedImage(null);
     setScanState('viewfinder');
   };
 
@@ -48,23 +90,25 @@ export default function ScanScreen() {
       {scanState === 'analyzing' && (
         <View style={styles.analyzingContainer}>
           <View style={styles.spinner}>
-            <Text style={{ fontSize: 60 }}>🌱</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
           <Text style={styles.analyzingTitle}>Đang phân tích...</Text>
           <Text style={styles.analyzingSubtitle}>
-            Bé Thóc đang xem xét lá cây, vui lòng đợi một chút nhé!
+            Bé Thóc đang xem xét lá cây bằng Gemini AI, vui lòng đợi một chút nhé!
           </Text>
         </View>
       )}
 
-      {scanState === 'result' && (
+      {scanState === 'result' && diagnosis && (
         <ScrollView contentContainerStyle={styles.resultContainer} showsVerticalScrollIndicator={false}>
           {/* Result Image Preview */}
           <View style={styles.previewImageContainer}>
-            <Image 
-              source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDsbCWDiuGTF5iEwK2O9pm1CMMzFdWx0hc4ellAPSIR0Fd0W04AaUk2McKFTBpkyt54F7qbz59AxRVm00X7l_paTxXsYAhKb0DJ2UtW18iwcftc8NpvHSUtky7QtZ3LYS_Jvnwzb_uyHj7Snd_GZJ5qRjx6kGvs2Y-yZafDMesEmvqIG9HZ3b06V39xa_0py0IGkepiBfpB_L-Nfe8YfQg-4VDdxhF78xd9seUk1RNYLfCuF3wEdwSvukiK2uu0wpN98-IjRJs9NRru' }} 
-              style={styles.previewImage} 
-            />
+            {scannedImage && (
+              <Image 
+                source={{ uri: scannedImage }} 
+                style={styles.previewImage} 
+              />
+            )}
           </View>
 
           {/* Dialogue */}
@@ -73,48 +117,82 @@ export default function ScanScreen() {
               <Text style={{ fontSize: 24 }}>🌱</Text>
             </View>
             <View style={styles.bubble}>
-              <Text style={styles.bubbleText}>Oh no! Looks like we found something.</Text>
+              <Text style={styles.bubbleText}>
+                {diagnosis.is_plant 
+                  ? 'Bé Thóc đã chẩn đoán xong bệnh cho cây rồi đây!' 
+                  : 'Hình ảnh này có vẻ không phải là lá cây nông nghiệp.'}
+              </Text>
             </View>
           </View>
 
           {/* Result Card */}
           <View style={styles.resultCard}>
             <View style={styles.statusPill}>
-              <Text style={styles.statusText}>ANALYSIS COMPLETE</Text>
+              <Text style={styles.statusText}>PHÂN TÍCH THÀNH CÔNG</Text>
             </View>
-            <Text style={styles.diseaseName}>Bệnh đốm lá (Leaf Spot)</Text>
             
-            <View style={styles.confidenceRow}>
-              <Text style={styles.confidenceLabel}>Confidence</Text>
-              <Text style={styles.confidenceValue}>92%</Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '92%' }]} />
-            </View>
+            <Text style={styles.diseaseName}>
+              {diagnosis.disease || 'Cây khỏe mạnh (Không phát hiện bệnh)'}
+            </Text>
+            
+            {diagnosis.confidence !== undefined && (
+              <>
+                <View style={styles.confidenceRow}>
+                  <Text style={styles.confidenceLabel}>Độ chính xác AI</Text>
+                  <Text style={styles.confidenceValue}>{Math.round(diagnosis.confidence * 100)}%</Text>
+                </View>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${diagnosis.confidence * 100}%` }]} />
+                </View>
+              </>
+            )}
 
-            <View style={styles.symptomsBox}>
-              <Text style={styles.sectionTitle}>Triệu chứng:</Text>
-              <Text style={styles.symptomItem}>• Đốm nâu viền vàng trên lá</Text>
-              <Text style={styles.symptomItem}>• Lá bị khô và rụng sớm</Text>
-            </View>
+            {diagnosis.symptoms && diagnosis.symptoms.length > 0 && (
+              <View style={styles.symptomsBox}>
+                <Text style={styles.sectionTitle}>Triệu chứng phát hiện:</Text>
+                {diagnosis.symptoms.map((symptom: string, index: number) => (
+                  <Text key={index} style={styles.symptomItem}>• {symptom}</Text>
+                ))}
+              </View>
+            )}
 
-            <View style={styles.warningBox}>
-              <Info size={16} color="#9A3412" />
-              <Text style={styles.warningText}>
-                ⚠️ Cần cách ly cây bệnh để tránh lây lan sang các cây khác trong vườn.
-              </Text>
-            </View>
+            {diagnosis.treatment && (
+              <View style={styles.treatmentBox}>
+                <Text style={styles.sectionTitle}>Giải pháp điều trị:</Text>
+                <Text style={styles.treatmentTitle}>Hữu cơ / Sinh học:</Text>
+                <Text style={styles.treatmentDesc}>{diagnosis.treatment.organic}</Text>
+                
+                <Text style={[styles.treatmentTitle, { marginTop: 8 }]}>Hóa học (Nếu bệnh nặng):</Text>
+                <Text style={styles.treatmentDesc}>{diagnosis.treatment.chemical}</Text>
+
+                {diagnosis.treatment.phi_warning && (
+                  <View style={[styles.warningBox, { marginTop: 12 }]}>
+                    <Info size={16} color="#9A3412" />
+                    <Text style={styles.warningText}>
+                      ⚠️ Khuyến cáo cách ly (PHI): {diagnosis.treatment.phi_warning}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {diagnosis.safety_alert && (
+              <View style={[styles.warningBox, { marginTop: 16 }]}>
+                <Info size={16} color="#9A3412" />
+                <Text style={styles.warningText}>{diagnosis.safety_alert}</Text>
+              </View>
+            )}
           </View>
 
           {/* Actions */}
           <View style={styles.actionButtons}>
             <Button 
-              title="Save treatment" 
-              onPress={() => {}} 
+              title="Quay lại Nhật ký" 
+              onPress={() => router.push('/(tabs)/diary')} 
               style={{ marginBottom: 12 }}
             />
             <Button 
-              title="Ask AI advice" 
+              title="Hỏi ý kiến Bé Thóc AI" 
               variant="outline" 
               onPress={() => router.push('/(tabs)/chat')}
             />
@@ -154,7 +232,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   cameraFrame: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
     margin: 20,
@@ -332,6 +410,20 @@ const styles = StyleSheet.create({
   },
   symptomsBox: {
     marginBottom: 24,
+  },
+  treatmentBox: {
+    marginBottom: 16,
+  },
+  treatmentTitle: {
+    ...typography.bodySmall,
+    fontWeight: '800',
+    color: colors.primary,
+    marginTop: 4,
+  },
+  treatmentDesc: {
+    ...typography.bodySmall,
+    color: colors.textMain,
+    marginTop: 2,
   },
   sectionTitle: {
     ...typography.bodySmall,

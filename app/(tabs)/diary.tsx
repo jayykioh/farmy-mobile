@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 10,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: colors.primaryContainer,
   },
   tagsContainer: {
     flexDirection: 'row',

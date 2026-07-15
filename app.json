@@ -2,6 +2,7 @@
   "expo": {
     "name": "farmy-mobile",
     "slug": "farmy-mobile",
+    "scheme": "farmy",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -23,7 +24,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-web-browser"
     ]
   }
 }

@@ -22,8 +22,9 @@ export function useChat() {
 
     const token = await AsyncStorage.getItem('access_token');
 
+    const clientMessageId = `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     // Mở SSE kết nối
-    let url = `${api.defaults.baseURL}/chat/stream/events?query=${encodeURIComponent(content)}`;
+    let url = `${api.defaults.baseURL}/chat/stream/events?message=${encodeURIComponent(content)}&client_message_id=${clientMessageId}`;
     if (sessionId) {
       url += `&session_id=${sessionId}`;
     }
@@ -40,14 +41,14 @@ export function useChat() {
     // Khởi tạo tin nhắn trống của bot
     setMessages(prev => [...prev, { id: botMsgId, role: 'assistant', content: '' }]);
 
-    es.addEventListener('meta', (event: any) => {
+    es.addEventListener('meta' as any, (event: any) => {
       const data = JSON.parse(event.data || '{}');
       if (data.session_id) {
         setSessionId(data.session_id);
       }
     });
 
-    es.addEventListener('token', (event: any) => {
+    es.addEventListener('token' as any, (event: any) => {
       const data = JSON.parse(event.data || '{}');
       if (data.delta) {
         currentBotContent += data.delta;
@@ -55,12 +56,12 @@ export function useChat() {
       }
     });
 
-    es.addEventListener('done', () => {
+    es.addEventListener('done' as any, () => {
       setIsTyping(false);
       es.close();
     });
 
-    es.addEventListener('error', (event: any) => {
+    es.addEventListener('error' as any, (event: any) => {
       console.error('SSE Error:', event);
       setIsTyping(false);
       es.close();

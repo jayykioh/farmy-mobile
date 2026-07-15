@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -7,23 +7,79 @@ import { ChevronDown, Camera, Droplets, FlaskConical, BugOff, Save, X } from 'lu
 import { Button } from '../../src/components/Button';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { useDiaries } from '../../src/hooks/useDiary';
+import { api } from '../../src/api/client';
+import { createDiaryRequestHash } from '../../src/utils/diaryHash';
 
 export default function CreateDiaryScreen() {
   const router = useRouter();
-  const [activeActivities, setActiveActivities] = useState<string[]>([]);
+  const { data: diaries = [], isLoading } = useDiaries();
+  
+  const [selectedDiaryIndex, setSelectedDiaryIndex] = useState(0);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [stage, setStage] = useState('');
+  const [content, setContent] = useState('');
+  const [activeActivity, setActiveActivity] = useState<string>('water'); // 'water', 'fertilizer', 'pest'
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-
-  const toggleActivity = (id: string) => {
-    setActiveActivities(prev => 
-      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
-    );
-  };
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const activities = [
-    { id: 'water', label: 'Đã tưới nước', icon: Droplets },
-    { id: 'fertilizer', label: 'Đã bón phân', icon: FlaskConical },
+    { id: 'water', label: 'Tưới nước', icon: Droplets },
+    { id: 'fertilizer', label: 'Bón phân', icon: FlaskConical },
     { id: 'pest', label: 'Phun thuốc', icon: BugOff },
   ];
+
+  const selectedDiary = diaries[selectedDiaryIndex];
+
+  const handleSave = async () => {
+    if (!selectedDiary) {
+      Alert.alert('Lỗi', 'Vui lòng chọn một vụ mùa trước.');
+      return;
+    }
+    if (!content.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng điền nội dung nhật ký.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const diaryDate = new Date().toISOString();
+      const idempotencyKey = `${Math.random().toString(36).substring(2, 15)}-${Date.now()}`;
+      
+      const payload = {
+        diaryId: selectedDiary._id,
+        activityType: activeActivity,
+        content: content.trim(),
+        diaryDate,
+        cropType: selectedDiary.crop_type,
+        imageDigests: imageUrl ? [imageUrl] : [],
+      };
+
+      const requestHash = createDiaryRequestHash(payload);
+
+      // Theo NestJS API:
+      // Body là CreateDiaryLogDto: { activity_type, content, image_url }
+      await api.post(`/diaries/${selectedDiary._id}/logs`, {
+        activity_type: activeActivity,
+        content: `${stage ? `[${stage}] ` : ''}${content.trim()}`,
+        image_url: imageUrl || undefined,
+      }, {
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+          'X-Request-Hash': requestHash,
+        }
+      });
+
+      Alert.alert('Thành công', 'Đã lưu nhật ký mới.', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể tạo nhật ký.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -40,10 +96,40 @@ export default function CreateDiaryScreen() {
             {/* Select Crop */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Chọn vụ mùa</Text>
-              <TouchableOpacity style={styles.selectInput}>
-                <Text style={styles.selectText}>Lúa Đài Thơm (Đang canh tác)</Text>
-                <ChevronDown size={20} color={colors.textMain + '80'} />
-              </TouchableOpacity>
+              {isLoading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : diaries.length === 0 ? (
+                <Text style={styles.emptyText}>Chưa có vụ mùa nào đang canh tác.</Text>
+              ) : (
+                <>
+                  <TouchableOpacity 
+                    style={styles.selectInput} 
+                    onPress={() => setShowDropdown(!showDropdown)}
+                  >
+                    <Text style={styles.selectText}>
+                      {selectedDiary ? selectedDiary.crop_type : 'Chọn vụ mùa'}
+                    </Text>
+                    <ChevronDown size={20} color={colors.textMain + '80'} />
+                  </TouchableOpacity>
+
+                  {showDropdown && (
+                    <View style={styles.dropdown}>
+                      {diaries.map((diary, idx) => (
+                        <TouchableOpacity 
+                          key={diary._id}
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            setSelectedDiaryIndex(idx);
+                            setShowDropdown(false);
+                          }}
+                        >
+                          <Text style={styles.dropdownItemText}>{diary.crop_type}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </>
+              )}
             </View>
 
             {/* Growth Stage */}
@@ -51,8 +137,10 @@ export default function CreateDiaryScreen() {
               <Text style={styles.label}>Giai đoạn sinh trưởng</Text>
               <TextInput 
                 style={styles.textInput} 
-                placeholder="Đang làm đòng / Trổ bông" 
+                placeholder="Ví dụ: Đang làm đòng / Trổ bông" 
                 placeholderTextColor={colors.borderMain}
+                value={stage}
+                onChangeText={setStage}
               />
             </View>
 
@@ -66,6 +154,8 @@ export default function CreateDiaryScreen() {
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
+                value={content}
+                onChangeText={setContent}
               />
             </View>
 
@@ -75,12 +165,12 @@ export default function CreateDiaryScreen() {
               <View style={styles.activitiesRow}>
                 {activities.map(act => {
                   const Icon = act.icon;
-                  const isActive = activeActivities.includes(act.id);
+                  const isActive = activeActivity === act.id;
                   return (
                     <TouchableOpacity 
                       key={act.id} 
                       style={[styles.activityChip, isActive ? styles.activityChipActive : null]}
-                      onPress={() => toggleActivity(act.id)}
+                      onPress={() => setActiveActivity(act.id)}
                     >
                       <Icon size={16} color={isActive ? '#fff' : colors.textMain + 'B0'} />
                       <Text style={[styles.activityText, isActive ? styles.activityTextActive : null]}>
@@ -94,9 +184,12 @@ export default function CreateDiaryScreen() {
 
             {/* Image */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Hình ảnh thực tế</Text>
+              <Text style={styles.label}>Hình ảnh thực tế (Mock URL)</Text>
               <View style={styles.imageRow}>
-                <TouchableOpacity style={styles.addImageBtn} onPress={() => setImageUrl('https://lh3.googleusercontent.com/aida-public/AB6AXuDsbCWDiuGTF5iEwK2O9pm1CMMzFdWx0hc4ellAPSIR0Fd0W04AaUk2McKFTBpkyt54F7qbz59AxRVm00X7l_paTxXsYAhKb0DJ2UtW18iwcftc8NpvHSUtky7QtZ3LYS_Jvnwzb_uyHj7Snd_GZJ5qRjx6kGvs2Y-yZafDMesEmvqIG9HZ3b06V39xa_0py0IGkepiBfpB_L-Nfe8YfQg-4VDdxhF78xd9seUk1RNYLfCuF3wEdwSvukiK2uu0wpN98-IjRJs9NRru')}>
+                <TouchableOpacity 
+                  style={styles.addImageBtn} 
+                  onPress={() => setImageUrl('https://lh3.googleusercontent.com/aida-public/AB6AXuDsbCWDiuGTF5iEwK2O9pm1CMMzFdWx0hc4ellAPSIR0Fd0W04AaUk2McKFTBpkyt54F7qbz59AxRVm00X7l_paTxXsYAhKb0DJ2UtW18iwcftc8NpvHSUtky7QtZ3LYS_Jvnwzb_uyHj7Snd_GZJ5qRjx6kGvs2Y-yZafDMesEmvqIG9HZ3b06V39xa_0py0IGkepiBfpB_L-Nfe8YfQg-4VDdxhF78xd9seUk1RNYLfCuF3wEdwSvukiK2uu0wpN98-IjRJs9NRru')}
+                >
                   <Camera size={24} color={colors.textMain + '50'} />
                   <Text style={styles.addImageText}>Thêm ảnh</Text>
                 </TouchableOpacity>
@@ -125,12 +218,13 @@ export default function CreateDiaryScreen() {
 
         <View style={styles.footer}>
           <Button 
-            title="Lưu nhật ký" 
-            onPress={() => router.back()} 
-            icon={<Save size={20} color="#fff" style={{ marginRight: 8 }} />}
+            title={isSubmitting ? "Đang lưu..." : "Lưu nhật ký"} 
+            onPress={handleSave} 
+            disabled={isSubmitting}
+            icon={isSubmitting ? <ActivityIndicator size="small" color="#fff" /> : <Save size={20} color="#fff" style={{ marginRight: 8 }} />}
             style={{ marginBottom: 12 }}
           />
-          <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()} disabled={isSubmitting}>
             <Text style={styles.cancelText}>Hủy bỏ</Text>
           </TouchableOpacity>
         </View>
@@ -174,6 +268,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginLeft: 8,
   },
+  emptyText: {
+    ...typography.body,
+    color: colors.textMuted,
+    marginLeft: 8,
+  },
   selectInput: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -186,6 +285,23 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   selectText: {
+    ...typography.body,
+    color: colors.textMain,
+  },
+  dropdown: {
+    backgroundColor: colors.bgSurface,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '50',
+    borderRadius: 16,
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderMain + '20',
+  },
+  dropdownItemText: {
     ...typography.body,
     color: colors.textMain,
   },

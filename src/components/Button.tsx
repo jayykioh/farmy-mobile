@@ -8,6 +8,7 @@ interface ButtonProps extends TouchableOpacityProps {
   variant?: 'primary' | 'secondary' | 'outline' | 'danger';
   isLoading?: boolean;
   fullWidth?: boolean;
+  icon?: React.ReactNode;
 }
 
 export const Button: React.FC<ButtonProps> = ({ 
@@ -15,6 +16,7 @@ export const Button: React.FC<ButtonProps> = ({
   variant = 'primary', 
   isLoading = false, 
   fullWidth = true,
+  icon,
   style,
   ...props 
 }) => {
@@ -54,7 +56,10 @@ export const Button: React.FC<ButtonProps> = ({
       {isLoading ? (
         <ActivityIndicator color={variant === 'outline' ? colors.primary : colors.bgSurface} />
       ) : (
-        <Text style={[styles.textBase, getTextStyle()]}>{title}</Text>
+        <>
+          {icon}
+          <Text style={[styles.textBase, getTextStyle()]}>{title}</Text>
+        </>
       )}
     </TouchableOpacity>
   );

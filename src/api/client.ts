@@ -1,8 +1,7 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Replace with your actual backend URL or use ngrok/local IP for testing
-const API_BASE_URL = 'http://192.168.1.203:3000/api/v1';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.203:3000/api/v1';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
