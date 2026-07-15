@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import { useDiaries } from '../../src/hooks/useDiary';
 import { api } from '../../src/api/client';
 import { createDiaryRequestHash } from '../../src/utils/diaryHash';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function CreateDiaryScreen() {
   const router = useRouter();
@@ -22,6 +23,56 @@ export default function CreateDiaryScreen() {
   const [activeActivity, setActiveActivity] = useState<string>('water'); // 'water', 'fertilizer', 'pest'
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleSelectImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Quyền truy cập', 'Ứng dụng cần quyền truy cập thư viện ảnh để tải lên hình ảnh.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const selectedImage = result.assets[0];
+      setIsUploading(true);
+      try {
+        const formData = new FormData();
+        const filename = selectedImage.uri.split('/').pop() || 'photo.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+        formData.append('file', {
+          uri: selectedImage.uri,
+          name: filename,
+          type,
+        } as any);
+
+        const response = await api.post('/snaps/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+
+        if (response.data?.success && response.data?.data?.publicUrl) {
+          setImageUrl(response.data.data.publicUrl);
+        } else {
+          throw new Error('Không nhận được đường dẫn ảnh từ máy chủ.');
+        }
+      } catch (err: any) {
+        console.error(err);
+        const errMsg = err.response?.data?.message || err.message || 'Không thể tải ảnh lên.';
+        Alert.alert('Lỗi tải ảnh', errMsg);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
 
   const activities = [
     { id: 'water', label: 'Tưới nước', icon: Droplets },
@@ -184,14 +235,21 @@ export default function CreateDiaryScreen() {
 
             {/* Image */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Hình ảnh thực tế (Mock URL)</Text>
+              <Text style={styles.label}>Hình ảnh thực tế</Text>
               <View style={styles.imageRow}>
                 <TouchableOpacity 
                   style={styles.addImageBtn} 
-                  onPress={() => setImageUrl('https://lh3.googleusercontent.com/aida-public/AB6AXuDsbCWDiuGTF5iEwK2O9pm1CMMzFdWx0hc4ellAPSIR0Fd0W04AaUk2McKFTBpkyt54F7qbz59AxRVm00X7l_paTxXsYAhKb0DJ2UtW18iwcftc8NpvHSUtky7QtZ3LYS_Jvnwzb_uyHj7Snd_GZJ5qRjx6kGvs2Y-yZafDMesEmvqIG9HZ3b06V39xa_0py0IGkepiBfpB_L-Nfe8YfQg-4VDdxhF78xd9seUk1RNYLfCuF3wEdwSvukiK2uu0wpN98-IjRJs9NRru')}
+                  onPress={handleSelectImage}
+                  disabled={isUploading}
                 >
-                  <Camera size={24} color={colors.textMain + '50'} />
-                  <Text style={styles.addImageText}>Thêm ảnh</Text>
+                  {isUploading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <>
+                      <Camera size={24} color={colors.textMain + '50'} />
+                      <Text style={styles.addImageText}>Thêm ảnh</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
 
                 {imageUrl && (
