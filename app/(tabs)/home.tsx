@@ -4,13 +4,15 @@ import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
 import { useAuthStore } from '../../src/store/authStore';
 import { usePetStatus } from '../../src/hooks/usePet';
-import { CloudRain, Sun, Wind, Droplets, Camera, MessageCircleQuestion } from 'lucide-react-native';
+import { CloudRain, Sun, Wind, Droplets, Camera, MessageCircleQuestion, Flame, Sprout } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
   const { data: petStatus, isLoading: petLoading, refetch: refetchPet } = usePetStatus();
   const router = useRouter();
+  const { gutter, contentMaxWidth, isCompact } = useResponsiveLayout();
 
   const level = petStatus?.level || 1;
   const xp = petStatus?.exp || 0;
@@ -20,19 +22,20 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: gutter, maxWidth: contentMaxWidth }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={petLoading} onRefresh={refetchPet} />}
       >
         
         {/* Header Section */}
         <View style={styles.header}>
-          <View>
+          <View style={styles.greetingBlock}>
             <Text style={styles.greeting}>Chào buổi sáng,</Text>
             <Text style={styles.userName}>{user?.name || 'Nông dân'}</Text>
           </View>
           <View style={styles.streakBadge}>
-            <Text style={styles.streakText}>🔥 3 Ngày</Text>
+            <Flame size={16} color={colors.warning} />
+            <Text style={styles.streakText}>3 ngày</Text>
           </View>
         </View>
 
@@ -45,8 +48,10 @@ export default function HomeScreen() {
             </View>
           </View>
           
-          <View style={styles.mascotImageContainer}>
-            <Text style={styles.mascotEmoji}>🌱</Text>
+          <View style={styles.mascotImageContainer} accessibilityLabel="Linh vật Bé Thóc">
+            <View style={styles.mascotIconShell}>
+              <Sprout size={64} color={colors.primaryContainer} strokeWidth={1.7} />
+            </View>
           </View>
 
           <View style={styles.xpContainer}>
@@ -54,7 +59,13 @@ export default function HomeScreen() {
               <Text style={styles.xpLabel}>Kinh nghiệm</Text>
               <Text style={styles.xpValue}>{xp} / {maxXp} XP</Text>
             </View>
-            <View style={styles.progressBar}>
+            <View
+              style={styles.progressBar}
+              accessible
+              accessibilityRole="progressbar"
+              accessibilityLabel="Tiến độ kinh nghiệm"
+              accessibilityValue={{ min: 0, max: maxXp, now: xp }}
+            >
               <View style={[styles.progressFill, { width: `${progress}%` }]} />
             </View>
           </View>
@@ -63,32 +74,32 @@ export default function HomeScreen() {
         {/* Quick Actions */}
         <Text style={styles.sectionTitle}>Hành động nhanh</Text>
         <View style={styles.quickActionsGrid}>
-          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(tabs)/diary')}>
-            <View style={[styles.actionIconBg, { backgroundColor: '#EFF6FF' }]}>
-              <Droplets size={24} color="#3B82F6" />
+          <TouchableOpacity style={[styles.actionCard, isCompact && styles.actionCardCompact]} onPress={() => router.push('/(tabs)/diary')} activeOpacity={0.72} accessibilityRole="button">
+            <View style={[styles.actionIconBg, { backgroundColor: colors.infoContainer }]}>
+              <Droplets size={24} color={colors.info} />
             </View>
             <Text style={styles.actionText}>Ghi nhật ký</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/scan')}>
-            <View style={[styles.actionIconBg, { backgroundColor: '#ECFDF5' }]}>
-              <Camera size={24} color="#10B981" />
+          <TouchableOpacity style={[styles.actionCard, isCompact && styles.actionCardCompact]} onPress={() => router.push('/scan')} activeOpacity={0.72} accessibilityRole="button">
+            <View style={[styles.actionIconBg, { backgroundColor: colors.successContainer }]}>
+              <Camera size={24} color={colors.success} />
             </View>
             <Text style={styles.actionText}>Quét sâu bệnh</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/(tabs)/chat')}>
-            <View style={[styles.actionIconBg, { backgroundColor: '#FFFBEB' }]}>
-              <MessageCircleQuestion size={24} color="#F59E0B" />
+          <TouchableOpacity style={[styles.actionCard, isCompact && styles.actionCardCompact]} onPress={() => router.push('/(tabs)/chat')} activeOpacity={0.72} accessibilityRole="button">
+            <View style={[styles.actionIconBg, { backgroundColor: colors.warningContainer }]}>
+              <MessageCircleQuestion size={24} color={colors.warning} />
             </View>
             <Text style={styles.actionText}>Hỏi AI</Text>
           </TouchableOpacity>
         </View>
 
         {/* Weather Mini Widget */}
-        <View style={styles.weatherWidget}>
+        <View style={[styles.weatherWidget, isCompact && styles.weatherWidgetCompact]}>
           <View style={styles.weatherLeft}>
-            <Sun size={32} color="#F59E0B" fill="#FDE68A" />
+            <Sun size={32} color={colors.warning} />
             <View>
               <Text style={styles.tempText}>32°C</Text>
               <Text style={styles.weatherDesc}>Nắng nhẹ, phù hợp tưới tiêu</Text>
@@ -117,7 +128,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgMain,
   },
   scrollContent: {
-    padding: 24,
+    width: '100%',
+    alignSelf: 'center',
+    paddingTop: 16,
     paddingBottom: 40,
   },
   header: {
@@ -125,6 +138,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 24,
+  },
+  greetingBlock: {
+    flex: 1,
+    paddingRight: 12,
   },
   greeting: {
     ...typography.body,
@@ -136,30 +153,33 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   streakBadge: {
-    backgroundColor: '#FEF3C7',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.warningContainer,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: colors.warning + '33',
   },
   streakText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#D97706',
+    color: colors.warning,
   },
   mascotCard: {
     backgroundColor: colors.bgSurface,
-    borderRadius: 24,
+    borderRadius: 22,
     padding: 24,
     borderWidth: 1,
     borderColor: colors.borderMain + '50',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 4,
-    marginBottom: 32,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 2,
+    marginBottom: 28,
   },
   mascotHeader: {
     flexDirection: 'row',
@@ -182,17 +202,24 @@ const styles = StyleSheet.create({
     color: colors.secondaryDark,
   },
   mascotImageContainer: {
-    height: 160,
-    backgroundColor: '#EFF6FF',
+    minHeight: 148,
+    backgroundColor: colors.primaryLightest,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: colors.primaryLight + '66',
   },
-  mascotEmoji: {
-    fontSize: 80,
+  mascotIconShell: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bgSurface,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
   },
   xpContainer: {
     gap: 8,
@@ -230,14 +257,18 @@ const styles = StyleSheet.create({
   },
   quickActionsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     marginBottom: 32,
   },
   actionCard: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '29%',
+    minWidth: 100,
+    minHeight: 128,
     backgroundColor: colors.bgSurface,
     padding: 16,
-    borderRadius: 20,
+    borderRadius: 18,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.borderMain + '50',
@@ -246,6 +277,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  actionCardCompact: {
+    flexBasis: '46%',
   },
   actionIconBg: {
     width: 48,
@@ -270,10 +304,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderMain + '50',
   },
+  weatherWidgetCompact: {
+    alignItems: 'flex-start',
+    gap: 16,
+  },
   weatherLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    flex: 1,
   },
   tempText: {
     ...typography.h3,
@@ -282,6 +321,7 @@ const styles = StyleSheet.create({
   weatherDesc: {
     ...typography.caption,
     color: colors.textMuted,
+    flexShrink: 1,
   },
   weatherDetails: {
     gap: 4,

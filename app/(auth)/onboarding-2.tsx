@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { goBackOrReplace } from '../../src/utils/navigation';
 import { useState } from 'react';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
@@ -40,7 +41,7 @@ export default function OnboardingStep2() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Navigation Bar */}
         <View style={styles.navBar}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity onPress={() => goBackOrReplace(router, '/(auth)/onboarding-1')} style={styles.backBtn}>
             <ChevronLeft size={20} color={colors.textMain} />
           </TouchableOpacity>
           <Text style={styles.brandText}>FarmDiaries</Text>

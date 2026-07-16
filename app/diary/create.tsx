@@ -7,6 +7,7 @@ import { ChevronDown, Camera, Droplets, FlaskConical, BugOff, Save, X } from 'lu
 import { Button } from '../../src/components/Button';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { goBackOrReplace } from '../../src/utils/navigation';
 import { useDiaries } from '../../src/hooks/useDiary';
 import { api } from '../../src/api/client';
 import { createDiaryRequestHash } from '../../src/utils/diaryHash';
@@ -122,7 +123,7 @@ export default function CreateDiaryScreen() {
       });
 
       Alert.alert('Thành công', 'Đã lưu nhật ký mới.', [
-        { text: 'OK', onPress: () => router.back() }
+        { text: 'OK', onPress: () => goBackOrReplace(router, '/(tabs)/diary') }
       ]);
     } catch (err: any) {
       console.error(err);
@@ -133,8 +134,8 @@ export default function CreateDiaryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <PageHeader title="Nhật ký mới" />
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+      <PageHeader title="Nhật ký mới" fallbackHref="/(tabs)/diary" />
       
       <KeyboardAvoidingView 
         style={styles.content} 
@@ -282,7 +283,7 @@ export default function CreateDiaryScreen() {
             icon={isSubmitting ? <ActivityIndicator size="small" color="#fff" /> : <Save size={20} color="#fff" style={{ marginRight: 8 }} />}
             style={{ marginBottom: 12 }}
           />
-          <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()} disabled={isSubmitting}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={() => goBackOrReplace(router, '/(tabs)/diary')} disabled={isSubmitting}>
             <Text style={styles.cancelText}>Hủy bỏ</Text>
           </TouchableOpacity>
         </View>

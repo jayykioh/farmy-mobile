@@ -50,8 +50,8 @@ export default function ProfileInfoScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <PageHeader title="Thông tin cá nhân" showBack={true} />
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+      <PageHeader title="Thông tin cá nhân" showBack={true} fallbackHref="/(tabs)/profile" />
       
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         

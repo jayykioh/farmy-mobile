@@ -68,7 +68,7 @@ export default function ScanScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <PageHeader title="PlantScan" />
 
       {scanState === 'viewfinder' && (
