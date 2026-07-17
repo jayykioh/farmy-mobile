@@ -68,15 +68,15 @@ export default function DiaryHistoryScreen() {
 
   if (diaryLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-        <PageHeader title="Đang tải..." />
+      <SafeAreaView style={styles.container} edges={['left', 'right']}>
+        <PageHeader title="Đang tải..." fallbackHref="/(tabs)/diary" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <PageHeader title={`Lịch sử: ${diary?.crop_type || 'Mùa vụ'} ${diary?.season ? `(${diary.season})` : ''}`} />
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+      <PageHeader title={`Lịch sử: ${diary?.crop_type || 'Mùa vụ'} ${diary?.season ? `(${diary.season})` : ''}`} fallbackHref="/(tabs)/diary" />
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent} 

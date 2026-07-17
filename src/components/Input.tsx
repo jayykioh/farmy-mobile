@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TextInputProps } from 'react-native';
 import { colors } from '../theme/colors';
 import { typography } from '../theme/typography';
@@ -10,18 +10,31 @@ interface InputProps extends TextInputProps {
 }
 
 export const Input: React.FC<InputProps> = ({ label, error, icon, style, ...props }) => {
+  const [isFocused, setIsFocused] = useState(false);
+
   return (
     <View style={styles.container}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputContainer, error && styles.inputError]}>
+      <View style={[styles.inputContainer, isFocused && styles.inputFocused, error && styles.inputError]}>
         {icon && <View style={styles.iconContainer}>{icon}</View>}
         <TextInput 
           style={[styles.input, style]} 
+          {...props}
           placeholderTextColor={colors.textMuted}
-          {...props} 
+          selectionColor={colors.primary}
+          accessibilityLabel={props.accessibilityLabel || label}
+          accessibilityState={{ disabled: props.editable === false }}
+          onFocus={(event) => {
+            setIsFocused(true);
+            props.onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setIsFocused(false);
+            props.onBlur?.(event);
+          }}
         />
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={styles.errorText} accessibilityLiveRegion="polite">{error}</Text>}
     </View>
   );
 };
@@ -40,14 +53,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.bgSurface,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.borderMain,
-    borderRadius: 16,
-    height: 56,
+    borderRadius: 14,
+    minHeight: 54,
     overflow: 'hidden',
   },
   inputError: {
     borderColor: colors.error,
+  },
+  inputFocused: {
+    borderColor: colors.primary,
+    borderWidth: 2,
   },
   iconContainer: {
     paddingLeft: 16,

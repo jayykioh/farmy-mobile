@@ -8,11 +8,13 @@ import { PageHeader } from '../../src/components/PageHeader';
 import { Button } from '../../src/components/Button';
 import { MapPin, Award, Medal, Droplets, ShieldAlert, User, Settings, HelpCircle, LogOut, ChevronRight } from 'lucide-react-native';
 import { usePetStatus } from '../../src/hooks/usePet';
+import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
 
 export default function ProfileScreen() {
   const { logout, user } = useAuthStore();
   const { data: petStatus } = usePetStatus();
   const router = useRouter();
+  const { gutter, contentMaxWidth, isCompact } = useResponsiveLayout();
 
   const handleLogout = () => {
     logout();
@@ -25,16 +27,17 @@ export default function ProfileScreen() {
   const progress = Math.min((xp / maxXp) * 100, 100);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <PageHeader title="Hồ sơ cá nhân" showBack={false} />
       
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingHorizontal: gutter, maxWidth: contentMaxWidth }]} showsVerticalScrollIndicator={false}>
         
         {/* Profile Info */}
         <View style={styles.profileCard}>
           <Image 
             source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDsbCWDiuGTF5iEwK2O9pm1CMMzFdWx0hc4ellAPSIR0Fd0W04AaUk2McKFTBpkyt54F7qbz59AxRVm00X7l_paTxXsYAhKb0DJ2UtW18iwcftc8NpvHSUtky7QtZ3LYS_Jvnwzb_uyHj7Snd_GZJ5qRjx6kGvs2Y-yZafDMesEmvqIG9HZ3b06V39xa_0py0IGkepiBfpB_L-Nfe8YfQg-4VDdxhF78xd9seUk1RNYLfCuF3wEdwSvukiK2uu0wpN98-IjRJs9NRru' }} 
             style={styles.avatar}
+            accessibilityLabel="Ảnh đại diện người dùng"
           />
           <View style={styles.profileInfo}>
             <Text style={styles.name}>{user?.name || 'Nông dân Ẩn danh'}</Text>
@@ -44,7 +47,7 @@ export default function ProfileScreen() {
             </View>
           </View>
           
-          <View style={styles.badgeOverlay}>
+          <View style={[styles.badgeOverlay, isCompact && styles.badgeOverlayCompact]}>
             <Award size={14} color="#B45309" />
             <Text style={styles.badgeText}>Chuyên Gia</Text>
           </View>
@@ -52,17 +55,17 @@ export default function ProfileScreen() {
 
         {/* Level XP Card */}
         <View style={styles.xpCard}>
-          <View style={styles.xpHeader}>
+          <View style={[styles.xpHeader, isCompact && styles.xpHeaderCompact]}>
             <View>
               <Text style={styles.levelTitle}>Cấp độ {level}</Text>
               <Text style={styles.levelSubtitle}>Chuyên Gia Trồng Trọt</Text>
             </View>
-            <View style={styles.xpRight}>
+            <View style={[styles.xpRight, isCompact && styles.xpRightCompact]}>
               <Text style={styles.xpAmount}>{xp} XP</Text>
               <Text style={styles.xpTarget}>/ {maxXp} XP lên cấp {level + 1}</Text>
             </View>
           </View>
-          <View style={styles.progressBar}>
+          <View style={styles.progressBar} accessible accessibilityRole="progressbar" accessibilityLabel="Tiến độ cấp độ" accessibilityValue={{ min: 0, max: maxXp, now: xp }}>
             <View style={[styles.progressFill, { width: `${progress}%` }]} />
           </View>
         </View>
@@ -71,7 +74,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Badge Shelf</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/shop')} accessibilityRole="button" accessibilityLabel="Mở cửa hàng" activeOpacity={0.7}>
               <Text style={styles.sectionLink}>Go to Shop →</Text>
             </TouchableOpacity>
           </View>
@@ -104,6 +107,8 @@ export default function ProfileScreen() {
             <TouchableOpacity 
               style={styles.settingItem}
               onPress={() => router.push('/profile/info')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
             >
               <View style={styles.settingLeft}>
                 <View style={styles.settingIconBg}>
@@ -113,7 +118,7 @@ export default function ProfileScreen() {
               </View>
               <ChevronRight size={20} color={colors.borderMain} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.settingItem}>
+            <TouchableOpacity style={styles.settingItem} activeOpacity={0.7} accessibilityRole="button">
               <View style={styles.settingLeft}>
                 <View style={styles.settingIconBg}>
                   <Settings size={20} color={colors.textMain + 'B0'} />
@@ -122,7 +127,7 @@ export default function ProfileScreen() {
               </View>
               <ChevronRight size={20} color={colors.borderMain} />
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.settingItem, styles.settingItemLast]}>
+            <TouchableOpacity style={[styles.settingItem, styles.settingItemLast]} activeOpacity={0.7} accessibilityRole="button">
               <View style={styles.settingLeft}>
                 <View style={styles.settingIconBg}>
                   <HelpCircle size={20} color={colors.textMain + 'B0'} />
@@ -153,7 +158,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgMain,
   },
   scrollContent: {
-    padding: 24,
+    width: '100%',
+    alignSelf: 'center',
+    paddingTop: 16,
     paddingBottom: 40,
   },
   profileCard: {
@@ -171,6 +178,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     position: 'relative',
+    flexWrap: 'wrap',
   },
   avatar: {
     width: 80,
@@ -183,6 +191,7 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     flex: 1,
+    minWidth: 150,
   },
   name: {
     ...typography.h3,
@@ -200,9 +209,6 @@ const styles = StyleSheet.create({
     color: colors.textMain + 'B0',
   },
   badgeOverlay: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEFCE8',
@@ -212,7 +218,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FEF08A',
     gap: 4,
-    transform: [{ rotate: '3deg' }],
+    marginLeft: 12,
+    alignSelf: 'flex-start',
+  },
+  badgeOverlayCompact: {
+    marginTop: 14,
+    marginLeft: 96,
   },
   badgeText: {
     fontSize: 10,
@@ -238,6 +249,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginBottom: 16,
   },
+  xpHeaderCompact: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
   levelTitle: {
     ...typography.h3,
   },
@@ -247,6 +263,9 @@ const styles = StyleSheet.create({
   },
   xpRight: {
     alignItems: 'flex-end',
+  },
+  xpRightCompact: {
+    alignItems: 'flex-start',
   },
   xpAmount: {
     fontSize: 18,
@@ -336,6 +355,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
+    minHeight: 64,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderMain + '30',
   },

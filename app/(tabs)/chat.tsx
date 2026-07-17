@@ -3,14 +3,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
 import { PageHeader } from '../../src/components/PageHeader';
-import { Camera, Send, ThumbsUp, ThumbsDown, BookOpen } from 'lucide-react-native';
+import { Camera, Send, ThumbsUp, ThumbsDown, Sprout } from 'lucide-react-native';
 import { useChat } from '../../src/hooks/useChat';
 import { useState, useRef } from 'react';
+import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
+import { useRouter } from 'expo-router';
 
 export default function ChatScreen() {
   const { messages, isTyping, sendMessage } = useChat();
   const [input, setInput] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
+  const router = useRouter();
+  const { gutter, contentMaxWidth } = useResponsiveLayout();
 
   const handleSend = () => {
     if (!input.trim() || isTyping) return;
@@ -19,8 +23,22 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <PageHeader title="FarmDiaries AI" showBack={false} rightElement={<Camera color={colors.textMain} size={24} />} />
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+      <PageHeader
+        title="FarmDiaries AI"
+        showBack={false}
+        rightElement={(
+          <TouchableOpacity
+            style={styles.headerAction}
+            onPress={() => router.push('/scan')}
+            accessibilityRole="button"
+            accessibilityLabel="Mở máy quét cây trồng"
+            activeOpacity={0.7}
+          >
+            <Camera color={colors.textMain} size={22} />
+          </TouchableOpacity>
+        )}
+      />
       
       <KeyboardAvoidingView 
         style={styles.content} 
@@ -29,7 +47,7 @@ export default function ChatScreen() {
       >
         <ScrollView 
           ref={scrollViewRef}
-          contentContainerStyle={styles.scrollContent} 
+          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: gutter, maxWidth: contentMaxWidth }]}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
@@ -44,7 +62,7 @@ export default function ChatScreen() {
           {messages.length === 0 && (
             <View style={[styles.messageWrapper, styles.messageAssistant]}>
               <View style={styles.avatarContainer}>
-                <Text style={styles.avatarEmoji}>🌱</Text>
+                <Sprout size={18} color={colors.primary} />
               </View>
               <View style={[styles.messageBubble, styles.bubbleAssistant]}>
                 <Text style={[styles.messageContent, styles.textContentAssistant]}>
@@ -59,7 +77,7 @@ export default function ChatScreen() {
             <View key={msg.id} style={[styles.messageWrapper, msg.role === 'user' ? styles.messageUser : styles.messageAssistant]}>
               {msg.role === 'assistant' && (
                 <View style={styles.avatarContainer}>
-                  <Text style={styles.avatarEmoji}>🌱</Text>
+                  <Sprout size={18} color={colors.primary} />
                 </View>
               )}
               
@@ -70,10 +88,10 @@ export default function ChatScreen() {
                 
                 {msg.role === 'assistant' && msg.content && (
                   <View style={styles.actionRow}>
-                    <TouchableOpacity style={styles.actionBtn}>
+                    <TouchableOpacity style={styles.actionBtn} accessibilityRole="button" accessibilityLabel="Phản hồi hữu ích">
                       <ThumbsUp size={14} color={colors.textMain} />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionBtn}>
+                    <TouchableOpacity style={styles.actionBtn} accessibilityRole="button" accessibilityLabel="Phản hồi chưa hữu ích">
                       <ThumbsDown size={14} color={colors.textMain} />
                     </TouchableOpacity>
                   </View>
@@ -90,22 +108,34 @@ export default function ChatScreen() {
         </ScrollView>
 
         {/* Input Bar */}
-        <View style={styles.inputContainer}>
-          <TouchableOpacity style={styles.cameraBtn}>
-            <Camera size={24} color={colors.textMuted} />
-          </TouchableOpacity>
-          <TextInput 
-            style={styles.input}
-            placeholder="Nhắn tin Bé Thóc..."
-            placeholderTextColor={colors.borderMain}
-            value={input}
-            onChangeText={setInput}
-            onSubmitEditing={handleSend}
-            editable={!isTyping}
-          />
-          <TouchableOpacity style={styles.sendBtn} onPress={handleSend} disabled={!input.trim() || isTyping}>
-            <Send size={20} color={!input.trim() || isTyping ? colors.bgSurface1 : colors.bgSurface} />
-          </TouchableOpacity>
+        <View style={styles.inputBar}>
+          <View style={[styles.inputContainer, { paddingHorizontal: gutter, maxWidth: contentMaxWidth }]}>
+            <TouchableOpacity style={styles.cameraBtn} onPress={() => router.push('/scan')} accessibilityRole="button" accessibilityLabel="Đính kèm ảnh cây trồng" activeOpacity={0.7}>
+              <Camera size={22} color={colors.textMuted} />
+            </TouchableOpacity>
+            <TextInput
+              style={styles.input}
+              placeholder="Nhắn tin Bé Thóc..."
+              placeholderTextColor={colors.textMuted}
+              value={input}
+              onChangeText={setInput}
+              onSubmitEditing={handleSend}
+              editable={!isTyping}
+              selectionColor={colors.primary}
+              accessibilityLabel="Tin nhắn cho Bé Thóc"
+              returnKeyType="send"
+            />
+            <TouchableOpacity
+              style={[styles.sendBtn, (!input.trim() || isTyping) && styles.sendBtnDisabled]}
+              onPress={handleSend}
+              disabled={!input.trim() || isTyping}
+              accessibilityRole="button"
+              accessibilityLabel="Gửi tin nhắn"
+              accessibilityState={{ disabled: !input.trim() || isTyping }}
+            >
+              <Send size={20} color={colors.bgSurface} />
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -121,7 +151,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    width: '100%',
+    alignSelf: 'center',
     paddingVertical: 16,
     paddingBottom: 24,
   },
@@ -170,8 +201,15 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginTop: 4,
   },
-  avatarEmoji: {
-    fontSize: 16,
+  headerAction: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bgSurface,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '66',
   },
   messageBubble: {
     padding: 16,
@@ -213,8 +251,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    minWidth: 44,
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     backgroundColor: colors.bgSurface,
     borderWidth: 1,
     borderColor: colors.borderMain + '50',
@@ -231,18 +271,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textMain,
   },
+  inputBar: {
+    backgroundColor: colors.bgSurface,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderMain + '50',
+  },
   inputContainer: {
+    width: '100%',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: colors.bgSurface,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderMain + '50',
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
   },
   cameraBtn: {
-    padding: 12,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     flex: 1,
@@ -257,12 +304,15 @@ const styles = StyleSheet.create({
     maxHeight: 100,
   },
   sendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 12,
+  },
+  sendBtnDisabled: {
+    opacity: 0.42,
   }
 });

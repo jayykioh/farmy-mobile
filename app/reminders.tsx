@@ -80,7 +80,7 @@ export default function RemindersScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <PageHeader title="Nhắc nhở của tôi" />
       
       <ScrollView 

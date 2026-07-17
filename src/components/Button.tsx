@@ -20,6 +20,7 @@ export const Button: React.FC<ButtonProps> = ({
   style,
   ...props 
 }) => {
+  const isDisabled = Boolean(props.disabled || isLoading);
   const getVariantStyle = () => {
     switch (variant) {
       case 'primary': return styles.primary;
@@ -46,11 +47,13 @@ export const Button: React.FC<ButtonProps> = ({
         styles.base, 
         getVariantStyle(), 
         fullWidth && styles.fullWidth,
-        props.disabled && styles.disabled,
+        isDisabled && styles.disabled,
         style
       ]} 
-      disabled={props.disabled || isLoading}
-      activeOpacity={0.8}
+      disabled={isDisabled}
+      activeOpacity={0.72}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled, busy: isLoading }}
       {...props}
     >
       {isLoading ? (
@@ -58,7 +61,7 @@ export const Button: React.FC<ButtonProps> = ({
       ) : (
         <>
           {icon}
-          <Text style={[styles.textBase, getTextStyle()]}>{title}</Text>
+          <Text style={[styles.textBase, getTextStyle()]} numberOfLines={2}>{title}</Text>
         </>
       )}
     </TouchableOpacity>
@@ -67,18 +70,20 @@ export const Button: React.FC<ButtonProps> = ({
 
 const styles = StyleSheet.create({
   base: {
-    paddingVertical: 16,
+    minHeight: 52,
+    paddingVertical: 13,
     paddingHorizontal: 24,
-    borderRadius: 20,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    gap: 10,
   },
   fullWidth: {
     width: '100%',
   },
   disabled: {
-    opacity: 0.6,
+    opacity: 0.48,
   },
   textBase: {
     ...typography.buttonText,
@@ -86,10 +91,10 @@ const styles = StyleSheet.create({
   primary: {
     backgroundColor: colors.primary,
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.16,
+    shadowRadius: 6,
+    elevation: 3,
   },
   textPrimary: {
     color: colors.bgSurface,
@@ -101,8 +106,8 @@ const styles = StyleSheet.create({
     color: colors.textMain,
   },
   outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
+    backgroundColor: colors.bgSurface,
+    borderWidth: 1,
     borderColor: colors.borderMain,
   },
   textOutline: {

@@ -7,6 +7,7 @@ import { ChevronDown, Save, Sprout } from 'lucide-react-native';
 import { Button } from '../../src/components/Button';
 import { useState, useMemo } from 'react';
 import { useRouter } from 'expo-router';
+import { goBackOrReplace } from '../../src/utils/navigation';
 import { api } from '../../src/api/client';
 import { usePlots } from '../../src/hooks/usePlot';
 import { useDiaries } from '../../src/hooks/useDiary';
@@ -70,7 +71,7 @@ export default function NewCycleScreen() {
       Alert.alert('Thành công', 'Đã khởi tạo vụ mùa mới.', [
         { text: 'OK', onPress: () => {
           refetchDiaries();
-          router.back();
+          goBackOrReplace(router, '/(tabs)/diary');
         }}
       ]);
     } catch (err: any) {
@@ -84,8 +85,8 @@ export default function NewCycleScreen() {
   const selectedPlot = plots.find(p => p._id === selectedPlotId);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <PageHeader title="Bắt đầu vụ mùa mới" />
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+      <PageHeader title="Bắt đầu vụ mùa mới" fallbackHref="/(tabs)/diary" />
       
       <KeyboardAvoidingView 
         style={styles.content} 
@@ -232,7 +233,7 @@ export default function NewCycleScreen() {
             icon={isSubmitting ? <ActivityIndicator size="small" color="#fff" /> : <Save size={20} color="#fff" style={{ marginRight: 8 }} />}
             style={{ marginBottom: 12 }}
           />
-          <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()} disabled={isSubmitting}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={() => goBackOrReplace(router, '/(tabs)/diary')} disabled={isSubmitting}>
             <Text style={styles.cancelText}>Hủy bỏ</Text>
           </TouchableOpacity>
         </View>

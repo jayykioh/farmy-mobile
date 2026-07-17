@@ -9,6 +9,7 @@ import { Mail, Lock, User } from 'lucide-react-native';
 import { PageHeader } from '../../src/components/PageHeader';
 import { useState } from 'react';
 import { useAuthStore } from '../../src/store/authStore';
+import { goBackOrReplace } from '../../src/utils/navigation';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -43,7 +44,7 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
-      <PageHeader title="Đăng ký" />
+      <PageHeader title="Đăng ký" fallbackHref="/(auth)/welcome" />
       <View style={styles.content}>
         <Text style={styles.title}>Tạo tài khoản</Text>
         <Text style={styles.subtitle}>Tham gia cùng FarmDiaries ngay hôm nay</Text>
@@ -87,7 +88,7 @@ export default function RegisterScreen() {
           title="Đã có tài khoản? Đăng nhập"
           variant="outline"
           disabled={loading}
-          onPress={() => router.back()}
+          onPress={() => goBackOrReplace(router, '/(auth)/welcome')}
         />
       </View>
     </SafeAreaView>

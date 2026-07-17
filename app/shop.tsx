@@ -75,7 +75,7 @@ export default function ShopScreen() {
   const equippedItem = items.find(item => item.equipped);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <PageHeader 
         title="Cửa hàng" 
         rightElement={
