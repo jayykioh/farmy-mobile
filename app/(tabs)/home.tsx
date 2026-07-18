@@ -7,6 +7,7 @@ import { usePetStatus } from '../../src/hooks/usePet';
 import { CloudRain, Sun, Wind, Droplets, Camera, MessageCircleQuestion, Flame, Sprout } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
+import { WeeklyInsightsSection } from '../../src/components/WeeklyInsightsSection';
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
@@ -95,6 +96,9 @@ export default function HomeScreen() {
             <Text style={styles.actionText}>Hỏi AI</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Weekly Insights */}
+        <WeeklyInsightsSection />
 
         {/* Weather Mini Widget */}
         <View style={[styles.weatherWidget, isCompact && styles.weatherWidgetCompact]}>
