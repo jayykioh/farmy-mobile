@@ -25,6 +25,13 @@ export default function CreateDiaryScreen() {
   
   const initialDiaryId = Array.isArray(diaryId) ? diaryId[0] : diaryId;
   const [selectedDiaryId, setSelectedDiaryId] = useState<string | null>(initialDiaryId || null);
+
+  useEffect(() => {
+    if (initialDiaryId) {
+      setSelectedDiaryId(initialDiaryId);
+    }
+  }, [initialDiaryId]);
+
   const [showDropdown, setShowDropdown] = useState(false);
   const [stage, setStage] = useState('');
   const [content, setContent] = useState('');
@@ -86,7 +93,7 @@ export default function CreateDiaryScreen() {
   ];
 
   const activeDiaries = diaries
-    .filter(diary => diary.status === 'active')
+    .filter(diary => diary.status === 'active' || diary._id === initialDiaryId)
     .sort((a, b) => new Date(b.start_date || 0).getTime() - new Date(a.start_date || 0).getTime());
   
   const currentSelectedId = selectedDiaryId || (activeDiaries.length > 0 ? activeDiaries[0]._id : null);

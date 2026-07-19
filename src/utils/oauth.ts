@@ -26,3 +26,23 @@ export const getAccessTokenFromUrl = (url: string) => {
     hashParams.get('token')
   );
 };
+
+export const getRefreshTokenFromUrl = (url: string) => {
+  const { queryParams } = Linking.parse(url);
+  const queryToken =
+    firstString(queryParams?.refreshToken) ??
+    firstString(queryParams?.refresh_token) ??
+    firstString(queryParams?.token);
+
+  if (queryToken) return queryToken;
+
+  const hash = url.split('#')[1];
+  if (!hash) return null;
+
+  const hashParams = new URLSearchParams(hash);
+  return (
+    hashParams.get('refreshToken') ??
+    hashParams.get('refresh_token') ??
+    hashParams.get('token')
+  );
+};

@@ -40,7 +40,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   checkAuth: () => Promise<void>;
-  setSession: (user: User, accessToken: string) => Promise<void>;
+  setSession: (user: User, accessToken: string, refreshToken?: string) => Promise<void>;
   logout: () => Promise<void>;
   login: (payload: LoginPayload) => Promise<void>;
   registerUser: (payload: RegisterPayload) => Promise<void>;
@@ -86,8 +86,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  setSession: async (user: User, accessToken: string) => {
+  setSession: async (user: User, accessToken: string, refreshToken?: string) => {
     await AsyncStorage.setItem('access_token', accessToken);
+    if (refreshToken) {
+      await AsyncStorage.setItem('refresh_token', refreshToken);
+    }
     set({ user: normalizeUser(user), isAuthenticated: true, isLoading: false });
   },
 
@@ -95,9 +98,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       set({ isLoading: true });
       const { data } = await api.post('/auth/login', payload);
-      const { access_token, user } = data.data;
+      const { access_token, refresh_token, user } = data.data;
       await AsyncStorage.setItem('access_token', access_token);
-      set({ user, isAuthenticated: true, isLoading: false });
+      if (refresh_token) {
+        await AsyncStorage.setItem('refresh_token', refresh_token);
+      }
+      set({ user: normalizeUser(user), isAuthenticated: true, isLoading: false });
     } catch (error) {
       set({ user: null, isAuthenticated: false, isLoading: false });
       throw new Error(getErrorMessage(error, 'Đăng nhập thất bại.'));
@@ -108,9 +114,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       set({ isLoading: true });
       const { data } = await api.post('/auth/register', payload);
-      const { access_token, user } = data.data;
+      const { access_token, refresh_token, user } = data.data;
       await AsyncStorage.setItem('access_token', access_token);
-      set({ user, isAuthenticated: true, isLoading: false });
+      if (refresh_token) {
+        await AsyncStorage.setItem('refresh_token', refresh_token);
+      }
+      set({ user: normalizeUser(user), isAuthenticated: true, isLoading: false });
     } catch (error) {
       set({ user: null, isAuthenticated: false, isLoading: false });
       throw new Error(getErrorMessage(error, 'Đăng ký thất bại.'));
@@ -123,6 +132,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
     } finally {
       await AsyncStorage.removeItem('access_token');
+      await AsyncStorage.removeItem('refresh_token');
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
