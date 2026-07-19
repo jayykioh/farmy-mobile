@@ -1,14 +1,15 @@
+import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { RefreshCcw, Info } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import * as Device from 'expo-device';
+import { api } from '../src/api/client';
 import { typography } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
 import { PageHeader } from '../src/components/PageHeader';
-import { RefreshCcw, Info } from 'lucide-react-native';
-import { useState } from 'react';
 import { Button } from '../src/components/Button';
-import { useRouter } from 'expo-router';
-import { api } from '../src/api/client';
-import * as ImagePicker from 'expo-image-picker';
 import { getErrorMessage } from '../src/utils/errors';
 
 type ScanState = 'viewfinder' | 'analyzing' | 'result';
@@ -16,6 +17,7 @@ type ScanState = 'viewfinder' | 'analyzing' | 'result';
 interface PlantDiagnosis {
   is_plant?: boolean;
   disease?: string;
+  disease_name?: string;
   confidence?: number;
   symptoms?: string[];
   treatment?: {
@@ -26,17 +28,56 @@ interface PlantDiagnosis {
   safety_alert?: string;
 }
 
+const MOCK_SCAN_IMAGE_URL = 'https://upload.wikimedia.org/wikipedia/commons/7/7c/Leaf_blight_symptoms_on_rice.jpg';
+const isMockCameraEnabled = __DEV__ && Platform.OS !== 'web' && !Device.isDevice;
+
+const normalizeDiagnosis = (data: any): PlantDiagnosis | null => {
+  return data?.data?.diagnosis ?? data?.diagnosis ?? data?.data ?? null;
+};
+
 export default function ScanScreen() {
   const [scanState, setScanState] = useState<ScanState>('viewfinder');
   const [diagnosis, setDiagnosis] = useState<PlantDiagnosis | null>(null);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
-  const [isCameraReady, setIsCameraReady] = useState(false);
   const router = useRouter();
-  const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<CameraView | null>(null);
-  const isProcessingRef = useRef(false);
+
+  const submitScan = async (formData: FormData, previewUri: string) => {
+    setScannedImage(previewUri);
+    setScanState('analyzing');
+
+    const res = await api.post('/plant-scans', formData, {
+      timeout: 60000,
+    });
+
+    const nextDiagnosis = normalizeDiagnosis(res.data);
+    if (!res.data?.success || !nextDiagnosis) {
+      throw new Error('Không nhận được dữ liệu chẩn đoán.');
+    }
+
+    setDiagnosis(nextDiagnosis);
+    setScanState('result');
+  };
+
+  const handleMockCapture = async () => {
+    try {
+      const imageResponse = await fetch(MOCK_SCAN_IMAGE_URL);
+      const imageBlob = await imageResponse.blob();
+      const formData = new FormData();
+      formData.append('image', imageBlob, 'mock-rice-leaf-blight.jpg');
+      formData.append('crop_type', 'Lúa');
+      await submitScan(formData, MOCK_SCAN_IMAGE_URL);
+    } catch (err) {
+      setScanState('viewfinder');
+      Alert.alert('Lỗi chẩn đoán', getErrorMessage(err, 'Không thể chạy quét thử bằng ảnh mẫu.'));
+    }
+  };
 
   const handleCapture = async () => {
+    if (isMockCameraEnabled) {
+      await handleMockCapture();
+      return;
+    }
+
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
@@ -56,9 +97,6 @@ export default function ScanScreen() {
       }
 
       const image = result.assets[0];
-      setScannedImage(image.uri);
-      setScanState('analyzing');
-
       const formData = new FormData();
       formData.append('image', {
         uri: image.uri,
@@ -67,44 +105,10 @@ export default function ScanScreen() {
       } as unknown as Blob);
       formData.append('crop_type', 'Lúa');
 
-      console.log('📸 Uploading scan:', { uri: image.uri, type: image.mimeType, name: image.fileName });
-
-      const res = await api.post('/plant-scans', formData, {
-        timeout: 60000,
-      });
-
-      const nextDiagnosis = normalizeDiagnosis(res.data);
-
-      if (res.data?.success && nextDiagnosis) {
-        setDiagnosis(nextDiagnosis);
-        setScanState('result');
-      } else {
-        throw new Error('Không nhận được dữ liệu chẩn đoán.');
-      }
+      await submitScan(formData, image.uri);
     } catch (err) {
-      console.error('❌ Scan error:', err);
       setScanState('viewfinder');
-      Alert.alert('Lỗi chẩn đoán', getErrorMessage(err, 'Hệ thống quét gặp sự cố.'), [
-        { text: 'Chụp lại', onPress: () => setScanState('viewfinder') }
-      ]);
-    } finally {
-      isProcessingRef.current = false;
-    }
-  };
-
-  const handleCapture = async () => {
-    if (!cameraRef.current || !isCameraReady) {
-      Alert.alert('Máy ảnh chưa sẵn sàng', 'Vui lòng đợi camera khởi động xong rồi chụp lại.');
-      return;
-    }
-
-    try {
-      const photo: CameraCapturedPicture = await cameraRef.current.takePictureAsync({ quality: 0.85 });
-      if (photo) {
-        await processImage({ uri: photo.uri, type: `image/${photo.format || 'jpeg'}` });
-      }
-    } catch {
-      Alert.alert('Lỗi', 'Không thể chụp ảnh.');
+      Alert.alert('Lỗi chẩn đoán', getErrorMessage(err, 'Hệ thống quét gặp sự cố.'));
     }
   };
 
@@ -124,17 +128,24 @@ export default function ScanScreen() {
 
       if (!result.canceled && result.assets.length > 0) {
         const asset = result.assets[0];
-        await processImage({ uri: asset.uri, name: asset.fileName, type: asset.mimeType });
+        const formData = new FormData();
+        formData.append('image', {
+          uri: asset.uri,
+          type: asset.mimeType || 'image/jpeg',
+          name: asset.fileName || 'plant-scan.jpg',
+        } as unknown as Blob);
+        formData.append('crop_type', 'Lúa');
+        await submitScan(formData, asset.uri);
       }
-    } catch {
-      Alert.alert('Lỗi', 'Không thể chọn ảnh từ thư viện.');
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể chọn ảnh từ thư viện.'));
     }
   };
 
   const handleRetake = () => {
     setDiagnosis(null);
     setScannedImage(null);
-    resetToViewfinder();
+    setScanState('viewfinder');
   };
 
   const diseaseName = diagnosis?.disease_name || diagnosis?.disease || 'Cây khỏe mạnh (Không phát hiện bệnh)';
@@ -148,43 +159,36 @@ export default function ScanScreen() {
 
       {scanState === 'viewfinder' && (
         <View style={styles.viewfinderContainer}>
-          {!permission ? (
-            <View style={{ flex: 1, justifyContent: 'center' }}>
-              <ActivityIndicator size="large" color={colors.primary} />
-            </View>
-          ) : !permission.granted ? (
-            <View style={{ alignItems: 'center', padding: 20 }}>
-              <Text style={{ textAlign: 'center', marginBottom: 20 }}>
-                Chúng tôi cần quyền truy cập máy ảnh để quét bệnh cho cây.
-              </Text>
-              <Button title="Cấp quyền máy ảnh" onPress={requestPermission} />
-            </View>
-          ) : (
-            <View style={styles.cameraBox}>
-              <CameraView 
-                style={styles.cameraPreview} 
-                ref={cameraRef}
-                facing="back"
-                onCameraReady={() => setIsCameraReady(true)}
-                onMountError={() => setIsCameraReady(false)}
-              />
-              <View style={styles.cameraFrame} />
-              <View style={styles.captureOverlay}>
-                <TouchableOpacity style={styles.galleryBtn} onPress={handlePickImage}>
-                  <ImageIcon size={24} color="#FFF" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.captureBtn} onPress={handleCapture}>
-                  <View style={styles.captureInner} />
-                </TouchableOpacity>
-                <View style={styles.galleryBtnPlaceholder} />
+          <View style={styles.cameraBox}>
+            {isMockCameraEnabled ? (
+              <>
+                <Image source={{ uri: MOCK_SCAN_IMAGE_URL }} style={styles.mockCameraImage} />
+                <View style={styles.mockBadge}>
+                  <Text style={styles.mockBadgeText}>Ảnh mẫu Simulator</Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.liveHint}>
+                <Text style={styles.liveHintTitle}>Sẵn sàng quét</Text>
+                <Text style={styles.liveHintText}>Bấm chụp để mở camera và gửi ảnh lên AI.</Text>
               </View>
+            )}
+            <View style={styles.cameraFrame} />
+            <View style={styles.captureOverlay}>
+              <TouchableOpacity style={styles.galleryBtn} onPress={handlePickImage}>
+                <Text style={styles.galleryBtnText}>Ảnh</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.captureBtn} onPress={handleCapture}>
+                <View style={styles.captureInner} />
+              </TouchableOpacity>
+              <View style={styles.galleryBtnPlaceholder} />
             </View>
-          )}
-          {permission?.granted && (
-            <Text style={styles.instructionText}>
-              Giữ camera sát lá bị bệnh để AI chẩn đoán tốt nhất
-            </Text>
-          )}
+          </View>
+          <Text style={styles.instructionText}>
+            {isMockCameraEnabled
+              ? 'Máy ảo đang dùng ảnh lá bệnh mẫu. Bấm nút chụp để test luồng AI.'
+              : 'Giữ camera sát lá bị bệnh để AI chẩn đoán tốt nhất'}
+          </Text>
         </View>
       )}
 
@@ -202,40 +206,30 @@ export default function ScanScreen() {
 
       {scanState === 'result' && diagnosis && (
         <ScrollView contentContainerStyle={styles.resultContainer} showsVerticalScrollIndicator={false}>
-          {/* Result Image Preview */}
           <View style={styles.previewImageContainer}>
-            {scannedImage && (
-              <Image 
-                source={{ uri: scannedImage }} 
-                style={styles.previewImage} 
-              />
-            )}
+            {scannedImage && <Image source={{ uri: scannedImage }} style={styles.previewImage} />}
           </View>
 
-          {/* Dialogue */}
           <View style={styles.dialogueRow}>
             <View style={styles.mascotAvatar}>
               <Text style={{ fontSize: 24 }}>🌱</Text>
             </View>
             <View style={styles.bubble}>
               <Text style={styles.bubbleText}>
-                {diagnosis.is_plant 
-                  ? 'Bé Thóc đã chẩn đoán xong bệnh cho cây rồi đây!' 
+                {diagnosis.is_plant
+                  ? 'Bé Thóc đã chẩn đoán xong bệnh cho cây rồi đây!'
                   : 'Hình ảnh này có vẻ không phải là lá cây nông nghiệp.'}
               </Text>
             </View>
           </View>
 
-          {/* Result Card */}
           <View style={styles.resultCard}>
             <View style={styles.statusPill}>
               <Text style={styles.statusText}>PHÂN TÍCH THÀNH CÔNG</Text>
             </View>
-            
-            <Text style={styles.diseaseName}>
-              {diseaseName}
-            </Text>
-            
+
+            <Text style={styles.diseaseName}>{diseaseName}</Text>
+
             {confidencePercent !== null && (
               <>
                 <View style={styles.confidenceRow}>
@@ -262,42 +256,39 @@ export default function ScanScreen() {
                 <Text style={styles.sectionTitle}>Giải pháp điều trị:</Text>
                 <Text style={styles.treatmentTitle}>Hữu cơ / Sinh học:</Text>
                 <Text style={styles.treatmentDesc}>{diagnosis.treatment.organic}</Text>
-                
+
                 <Text style={[styles.treatmentTitle, { marginTop: 8 }]}>Hóa học (Nếu bệnh nặng):</Text>
                 <Text style={styles.treatmentDesc}>{diagnosis.treatment.chemical}</Text>
 
                 {diagnosis.treatment.phi_warning && (
                   <View style={[styles.warningBox, { marginTop: 12 }]}>
                     <Info size={16} color="#9A3412" />
-                    <Text style={styles.warningText}>
-                      ⚠️ Khuyến cáo cách ly (PHI): {diagnosis.treatment.phi_warning}
-                    </Text>
+                    <Text style={styles.warningText}>⚠️ Khuyến cáo cách ly (PHI): {diagnosis.treatment.phi_warning}</Text>
                   </View>
                 )}
               </View>
             )}
 
             {diagnosis.safety_alert && (
-              <View style={[styles.warningBox, { marginTop: 16 }]}>
+              <View style={[styles.warningBox, { marginTop: 16 }]}> 
                 <Info size={16} color="#9A3412" />
                 <Text style={styles.warningText}>{diagnosis.safety_alert}</Text>
               </View>
             )}
           </View>
 
-          {/* Actions */}
           <View style={styles.actionButtons}>
-            <Button 
-              title="Quay lại Nhật ký" 
-              onPress={() => router.push('/(tabs)/diary')} 
+            <Button
+              title="Quay lại Nhật ký"
+              onPress={() => router.push('/(tabs)/diary')}
               style={{ marginBottom: 12 }}
             />
-            <Button 
-              title="Hỏi ý kiến Bé Thóc AI" 
-              variant="outline" 
+            <Button
+              title="Hỏi ý kiến Bé Thóc AI"
+              variant="outline"
               onPress={() => router.push('/(tabs)/chat')}
             />
-            
+
             <TouchableOpacity style={styles.retakeBtn} onPress={handleRetake}>
               <RefreshCcw size={16} color={colors.textMain + '80'} />
               <Text style={styles.retakeText}>Chụp lại</Text>
@@ -305,7 +296,6 @@ export default function ScanScreen() {
           </View>
         </ScrollView>
       )}
-
     </SafeAreaView>
   );
 }
@@ -323,7 +313,7 @@ const styles = StyleSheet.create({
   },
   cameraBox: {
     width: '100%',
-    aspectRatio: 3/4,
+    aspectRatio: 3 / 4,
     backgroundColor: '#000',
     borderRadius: 32,
     borderWidth: 4,
@@ -332,8 +322,40 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 24,
   },
-  cameraPreview: {
+  mockCameraImage: {
     ...StyleSheet.absoluteFill,
+    width: '100%',
+    height: '100%',
+  },
+  mockBadge: {
+    position: 'absolute',
+    top: 18,
+    alignSelf: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0, 0, 0, 0.56)',
+  },
+  mockBadgeText: {
+    ...typography.caption,
+    color: colors.bgSurface,
+    fontWeight: '800',
+  },
+  liveHint: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  liveHintTitle: {
+    ...typography.h2,
+    color: colors.bgSurface,
+    marginBottom: 8,
+  },
+  liveHintText: {
+    ...typography.body,
+    color: colors.bgSurface + 'CC',
+    textAlign: 'center',
   },
   cameraFrame: {
     ...StyleSheet.absoluteFill,
@@ -353,12 +375,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   galleryBtn: {
-    width: 48,
+    minWidth: 48,
     height: 48,
     borderRadius: 24,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  galleryBtnText: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: 12,
   },
   galleryBtnPlaceholder: {
     width: 48,
@@ -423,7 +451,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.borderMain + '50',
-    marginBottom: -40, // overlap
+    marginBottom: -40,
   },
   previewImage: {
     width: '100%',
@@ -586,5 +614,5 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '700',
     color: colors.textMain + '80',
-  }
+  },
 });
