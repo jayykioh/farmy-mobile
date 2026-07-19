@@ -9,6 +9,7 @@ import { typography } from '../../src/theme/typography';
 import { api } from '../../src/api/client';
 import { useAuthStore } from '../../src/store/authStore';
 import { ChevronLeft } from 'lucide-react-native';
+import { getErrorMessage } from '../../src/utils/errors';
 
 export default function OnboardingStep3() {
   const router = useRouter();
@@ -23,9 +24,9 @@ export default function OnboardingStep3() {
 
       // 1. Gọi API cập nhật onboardingCompleted
       await api.patch('/users/me', {
-        onboarding_completed: true,
+        onboardingCompleted: true,
         farmName,
-        primaryCrops: selectedCrop,
+        primaryCrop: selectedCrop,
       });
 
       // 2. Clear local storage keys
@@ -44,10 +45,8 @@ export default function OnboardingStep3() {
       Alert.alert('Thành công', 'Chúc mừng bạn đã hoàn thành thiết lập nông trại!', [
         { text: 'Bắt đầu ngay', onPress: () => router.replace('/(tabs)/home') }
       ]);
-    } catch (error: any) {
-      console.error('Failed to complete onboarding:', error);
-      // Fallback navigate to home in case of API failure to not block user
-      router.replace('/(tabs)/home');
+    } catch (error) {
+      Alert.alert('Lỗi thiết lập', getErrorMessage(error, 'Không thể hoàn tất thiết lập nông trại.'));
     } finally {
       setLoading(false);
     }

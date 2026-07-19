@@ -7,6 +7,18 @@ import { Star, Lock } from 'lucide-react-native';
 import { useState, useEffect } from 'react';
 import { usePetStatus } from '../src/hooks/usePet';
 import { api } from '../src/api/client';
+import { getErrorMessage } from '../src/utils/errors';
+
+interface ShopItem {
+  _id: string;
+  name: string;
+  category: string;
+  price: number;
+  requiredLevel: number;
+  owned?: boolean;
+  equipped?: boolean;
+  img?: string;
+}
 
 type ShopItem = {
   _id: string;
@@ -47,15 +59,14 @@ export default function ShopScreen() {
         setItemsError(null);
       }
     } catch (err) {
-      console.error(err);
-      setItemsError('Không thể tải cửa hàng. Vui lòng thử lại.');
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể tải cửa hàng.'));
     } finally {
       setIsLoadingItems(false);
     }
   };
 
   useEffect(() => {
-    fetchItems();
+    void Promise.resolve().then(fetchItems);
   }, []);
 
   const handleRefresh = async () => {
@@ -70,10 +81,8 @@ export default function ShopScreen() {
         Alert.alert('Thành công', 'Mua phụ kiện thành công');
         await handleRefresh();
       }
-    } catch (err: any) {
-      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể mua vật phẩm.');
-    } finally {
-      setPendingItemId(null);
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể mua vật phẩm.'));
     }
   };
 
@@ -85,10 +94,8 @@ export default function ShopScreen() {
         Alert.alert('Thành công', 'Thay đổi trang bị thành công');
         await handleRefresh();
       }
-    } catch (err: any) {
-      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể trang bị vật phẩm.');
-    } finally {
-      setPendingItemId(null);
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể trang bị vật phẩm.'));
     }
   };
 

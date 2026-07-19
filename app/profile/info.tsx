@@ -7,7 +7,13 @@ import { PageHeader } from '../../src/components/PageHeader';
 import { Mail, Shield, User, Landmark, Calendar } from 'lucide-react-native';
 
 export default function ProfileInfoScreen() {
-  const { user, isLoading } = useAuthStore();
+  const { user } = useAuthStore();
+  const initials = (user?.name || 'Nông dân')
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
 
   // Nhãn hiển thị cho vai trò
   const getRoleLabel = (role?: string) => {
@@ -69,14 +75,14 @@ export default function ProfileInfoScreen() {
         
         {/* Avatar Section */}
         <View style={styles.avatarSection}>
-          {user.avatarUrl ? (
+          {user?.avatarUrl ? (
             <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatar, styles.avatarFallback]}>
-              <Text style={styles.avatarInitial}>{avatarInitial}</Text>
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarInitials}>{initials}</Text>
             </View>
           )}
-          <Text style={styles.avatarName}>{displayName}</Text>
+          <Text style={styles.avatarName}>{user?.name || 'Nông dân'}</Text>
           <Text style={styles.avatarSub}>{getRoleLabel(user?.role)} • Farmy</Text>
         </View>
 
@@ -154,12 +160,23 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   avatarFallback: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 4,
+    borderColor: colors.bgSurface,
     backgroundColor: colors.primaryLightest,
+    marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  avatarInitial: {
-    ...typography.h1,
+  avatarInitials: {
+    ...typography.h2,
     color: colors.primary,
     fontWeight: '800',
   },

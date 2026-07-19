@@ -1,19 +1,20 @@
+import { useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
+import { RefreshCcw, Info } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { api } from '../src/api/client';
 import { typography } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
 import { PageHeader } from '../src/components/PageHeader';
-import { RefreshCcw, Info, Image as ImageIcon } from 'lucide-react-native';
-import { useState, useRef } from 'react';
 import { Button } from '../src/components/Button';
-import { useRouter } from 'expo-router';
-import { api } from '../src/api/client';
-import { CameraView, useCameraPermissions, type CameraCapturedPicture } from 'expo-camera';
-import * as ImagePicker from 'expo-image-picker';
+import { getErrorMessage } from '../src/utils/errors';
 
 type ScanState = 'viewfinder' | 'analyzing' | 'result';
 
-type Diagnosis = {
+interface PlantDiagnosis {
   is_plant?: boolean;
   disease?: string;
   disease_name?: string;
@@ -25,93 +26,49 @@ type Diagnosis = {
     phi_warning?: string;
   };
   safety_alert?: string;
-};
+}
 
-type ImageUploadSource = {
-  uri: string;
-  name?: string | null;
-  type?: string | null;
-};
+const normalizeDiagnosis = (data: any): PlantDiagnosis | null => data?.data?.diagnosis ?? data?.diagnosis ?? data?.data ?? null;
 
-const getImageFileName = (source: ImageUploadSource) =>
-  source.name || source.uri.split('/').pop()?.split('?')[0] || 'scan.jpg';
+const toFormData = async (uri: string, name: string, type = 'image/jpeg') => {
+  const formData = new FormData();
 
-const getImageMimeType = (source: ImageUploadSource) => {
-  if (source.type) return source.type;
+  if (uri.startsWith('data:')) {
+    const blob = await fetch(uri).then((response) => response.blob());
+    formData.append('image', blob, name);
+  } else {
+    formData.append('image', { uri, type, name } as unknown as Blob);
+  }
 
-  const extension = getImageFileName(source).split('.').pop()?.toLowerCase();
-  if (extension === 'png') return 'image/png';
-  if (extension === 'heic' || extension === 'heif') return `image/${extension}`;
-  return 'image/jpeg';
-};
-
-const normalizeDiagnosis = (payload: unknown): Diagnosis | null => {
-  if (!payload || typeof payload !== 'object') return null;
-
-  const response = payload as { data?: unknown };
-  const data = response.data as { diagnosis?: unknown } | undefined;
-  const diagnosis = data && typeof data === 'object' && 'diagnosis' in data ? data.diagnosis : response.data;
-
-  if (!diagnosis || typeof diagnosis !== 'object') return null;
-  return diagnosis as Diagnosis;
+  formData.append('crop_type', 'Lúa');
+  return formData;
 };
 
 export default function ScanScreen() {
   const [scanState, setScanState] = useState<ScanState>('viewfinder');
-  const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
+  const [diagnosis, setDiagnosis] = useState<PlantDiagnosis | null>(null);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
-  const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<CameraView | null>(null);
-  const isProcessingRef = useRef(false);
+  const cameraRef = useRef<any>(null);
+  const router = useRouter();
 
-  const resetToViewfinder = () => {
-    setScanState('viewfinder');
-    setIsCameraReady(false);
-  };
-
-  const processImage = async (source: ImageUploadSource) => {
-    if (isProcessingRef.current) return;
-
-    isProcessingRef.current = true;
+  const submitScan = async (uri: string, name: string, type?: string) => {
+    setScannedImage(uri);
     setScanState('analyzing');
-    setScannedImage(source.uri);
 
-    try {
-      const formData = new FormData();
-      const filename = getImageFileName(source);
+    const formData = await toFormData(uri, name, type);
+    const res = await api.post('/plant-scans', formData, {
+      timeout: 60000,
+    });
 
-      formData.append('image', {
-        uri: source.uri,
-        name: filename,
-        type: getImageMimeType(source),
-      } as unknown as Blob);
-
-      const res = await api.post('/plant-scans', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      const nextDiagnosis = normalizeDiagnosis(res.data);
-
-      if (res.data?.success && nextDiagnosis) {
-        setDiagnosis(nextDiagnosis);
-        setScanState('result');
-      } else {
-        throw new Error('Không nhận được dữ liệu chẩn đoán.');
-      }
-    } catch (err) {
-      console.error(err);
-      const error = err as { response?: { data?: { message?: string } }; message?: string };
-      const errMsg = error.response?.data?.message || error.message || 'Hệ thống quét gặp sự cố.';
-      Alert.alert('Lỗi chẩn đoán', errMsg, [
-        { text: 'Quét lại', onPress: resetToViewfinder }
-      ]);
-    } finally {
-      isProcessingRef.current = false;
+    const nextDiagnosis = normalizeDiagnosis(res.data);
+    if (!res.data?.success || !nextDiagnosis) {
+      throw new Error('Không nhận được dữ liệu chẩn đoán.');
     }
+
+    setDiagnosis(nextDiagnosis);
+    setScanState('result');
   };
 
   const handleCapture = async () => {
@@ -121,12 +78,15 @@ export default function ScanScreen() {
     }
 
     try {
-      const photo: CameraCapturedPicture = await cameraRef.current.takePictureAsync({ quality: 0.85 });
-      if (photo) {
-        await processImage({ uri: photo.uri, type: `image/${photo.format || 'jpeg'}` });
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
+      if (!photo?.uri) {
+        throw new Error('Không thể chụp ảnh.');
       }
-    } catch {
-      Alert.alert('Lỗi', 'Không thể chụp ảnh.');
+
+      await submitScan(photo.uri, 'plant-scan.jpg', photo.format ? `image/${photo.format}` : 'image/jpeg');
+    } catch (err) {
+      setScanState('viewfinder');
+      Alert.alert('Lỗi chẩn đoán', getErrorMessage(err, 'Hệ thống quét gặp sự cố.'));
     }
   };
 
@@ -146,17 +106,17 @@ export default function ScanScreen() {
 
       if (!result.canceled && result.assets.length > 0) {
         const asset = result.assets[0];
-        await processImage({ uri: asset.uri, name: asset.fileName, type: asset.mimeType });
+        await submitScan(asset.uri, asset.fileName || 'plant-scan.jpg', asset.mimeType || 'image/jpeg');
       }
-    } catch {
-      Alert.alert('Lỗi', 'Không thể chọn ảnh từ thư viện.');
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể chọn ảnh từ thư viện.'));
     }
   };
 
   const handleRetake = () => {
     setDiagnosis(null);
     setScannedImage(null);
-    resetToViewfinder();
+    setScanState('viewfinder');
   };
 
   const diseaseName = diagnosis?.disease_name || diagnosis?.disease || 'Cây khỏe mạnh (Không phát hiện bệnh)';
@@ -171,42 +131,39 @@ export default function ScanScreen() {
       {scanState === 'viewfinder' && (
         <View style={styles.viewfinderContainer}>
           {!permission ? (
-            <View style={{ flex: 1, justifyContent: 'center' }}>
+            <View style={styles.permissionState}>
               <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : !permission.granted ? (
-            <View style={{ alignItems: 'center', padding: 20 }}>
-              <Text style={{ textAlign: 'center', marginBottom: 20 }}>
-                Chúng tôi cần quyền truy cập máy ảnh để quét bệnh cho cây.
-              </Text>
+            <View style={styles.permissionState}>
+              <Text style={styles.permissionText}>Farmy cần quyền camera để chụp ảnh lá cây và phân tích bằng AI.</Text>
               <Button title="Cấp quyền máy ảnh" onPress={requestPermission} />
             </View>
           ) : (
             <View style={styles.cameraBox}>
-              <CameraView 
-                style={styles.cameraPreview} 
+              <CameraView
                 ref={cameraRef}
+                style={styles.cameraPreview}
                 facing="back"
                 onCameraReady={() => setIsCameraReady(true)}
                 onMountError={() => setIsCameraReady(false)}
               />
               <View style={styles.cameraFrame} />
               <View style={styles.captureOverlay}>
-                <TouchableOpacity style={styles.galleryBtn} onPress={handlePickImage}>
-                  <ImageIcon size={24} color="#FFF" />
+                <TouchableOpacity style={styles.galleryBtn} onPress={handlePickImage} accessibilityRole="button">
+                  <Text style={styles.galleryBtnText}>Ảnh</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.captureBtn} onPress={handleCapture}>
+                <TouchableOpacity style={styles.captureBtn} onPress={handleCapture} accessibilityRole="button">
                   <View style={styles.captureInner} />
                 </TouchableOpacity>
                 <View style={styles.galleryBtnPlaceholder} />
               </View>
             </View>
           )}
-          {permission?.granted && (
-            <Text style={styles.instructionText}>
-              Giữ camera sát lá bị bệnh để AI chẩn đoán tốt nhất
-            </Text>
-          )}
+
+          <Text style={styles.instructionText}>
+            Giữ camera sát lá bị bệnh rồi bấm chụp để gửi ảnh lên AI.
+          </Text>
         </View>
       )}
 
@@ -216,48 +173,36 @@ export default function ScanScreen() {
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
           <Text style={styles.analyzingTitle}>Đang phân tích...</Text>
-          <Text style={styles.analyzingSubtitle}>
-            Bé Thóc đang xem xét lá cây bằng Gemini AI, vui lòng đợi một chút nhé!
-          </Text>
+          <Text style={styles.analyzingSubtitle}>Bé Thóc đang xem xét lá cây bằng Gemini AI, vui lòng đợi một chút nhé!</Text>
         </View>
       )}
 
       {scanState === 'result' && diagnosis && (
         <ScrollView contentContainerStyle={styles.resultContainer} showsVerticalScrollIndicator={false}>
-          {/* Result Image Preview */}
           <View style={styles.previewImageContainer}>
-            {scannedImage && (
-              <Image 
-                source={{ uri: scannedImage }} 
-                style={styles.previewImage} 
-              />
-            )}
+            {scannedImage && <Image source={{ uri: scannedImage }} style={styles.previewImage} />}
           </View>
 
-          {/* Dialogue */}
           <View style={styles.dialogueRow}>
             <View style={styles.mascotAvatar}>
               <Text style={{ fontSize: 24 }}>🌱</Text>
             </View>
             <View style={styles.bubble}>
               <Text style={styles.bubbleText}>
-                {diagnosis.is_plant 
-                  ? 'Bé Thóc đã chẩn đoán xong bệnh cho cây rồi đây!' 
+                {diagnosis.is_plant
+                  ? 'Bé Thóc đã chẩn đoán xong bệnh cho cây rồi đây!'
                   : 'Hình ảnh này có vẻ không phải là lá cây nông nghiệp.'}
               </Text>
             </View>
           </View>
 
-          {/* Result Card */}
           <View style={styles.resultCard}>
             <View style={styles.statusPill}>
               <Text style={styles.statusText}>PHÂN TÍCH THÀNH CÔNG</Text>
             </View>
-            
-            <Text style={styles.diseaseName}>
-              {diseaseName}
-            </Text>
-            
+
+            <Text style={styles.diseaseName}>{diseaseName}</Text>
+
             {confidencePercent !== null && (
               <>
                 <View style={styles.confidenceRow}>
@@ -273,7 +218,7 @@ export default function ScanScreen() {
             {diagnosis.symptoms && diagnosis.symptoms.length > 0 && (
               <View style={styles.symptomsBox}>
                 <Text style={styles.sectionTitle}>Triệu chứng phát hiện:</Text>
-                {diagnosis.symptoms.map((symptom: string, index: number) => (
+                {diagnosis.symptoms.map((symptom, index) => (
                   <Text key={index} style={styles.symptomItem}>• {symptom}</Text>
                 ))}
               </View>
@@ -284,42 +229,31 @@ export default function ScanScreen() {
                 <Text style={styles.sectionTitle}>Giải pháp điều trị:</Text>
                 <Text style={styles.treatmentTitle}>Hữu cơ / Sinh học:</Text>
                 <Text style={styles.treatmentDesc}>{diagnosis.treatment.organic}</Text>
-                
+
                 <Text style={[styles.treatmentTitle, { marginTop: 8 }]}>Hóa học (Nếu bệnh nặng):</Text>
                 <Text style={styles.treatmentDesc}>{diagnosis.treatment.chemical}</Text>
 
                 {diagnosis.treatment.phi_warning && (
                   <View style={[styles.warningBox, { marginTop: 12 }]}>
                     <Info size={16} color="#9A3412" />
-                    <Text style={styles.warningText}>
-                      ⚠️ Khuyến cáo cách ly (PHI): {diagnosis.treatment.phi_warning}
-                    </Text>
+                    <Text style={styles.warningText}>⚠️ Khuyến cáo cách ly (PHI): {diagnosis.treatment.phi_warning}</Text>
                   </View>
                 )}
               </View>
             )}
 
             {diagnosis.safety_alert && (
-              <View style={[styles.warningBox, { marginTop: 16 }]}>
+              <View style={[styles.warningBox, { marginTop: 16 }]}> 
                 <Info size={16} color="#9A3412" />
                 <Text style={styles.warningText}>{diagnosis.safety_alert}</Text>
               </View>
             )}
           </View>
 
-          {/* Actions */}
           <View style={styles.actionButtons}>
-            <Button 
-              title="Quay lại Nhật ký" 
-              onPress={() => router.push('/(tabs)/diary')} 
-              style={{ marginBottom: 12 }}
-            />
-            <Button 
-              title="Hỏi ý kiến Bé Thóc AI" 
-              variant="outline" 
-              onPress={() => router.push('/(tabs)/chat')}
-            />
-            
+            <Button title="Quay lại Nhật ký" onPress={() => router.push('/(tabs)/diary')} style={{ marginBottom: 12 }} />
+            <Button title="Hỏi ý kiến Bé Thóc AI" variant="outline" onPress={() => router.push('/(tabs)/chat')} />
+
             <TouchableOpacity style={styles.retakeBtn} onPress={handleRetake}>
               <RefreshCcw size={16} color={colors.textMain + '80'} />
               <Text style={styles.retakeText}>Chụp lại</Text>
@@ -327,7 +261,6 @@ export default function ScanScreen() {
           </View>
         </ScrollView>
       )}
-
     </SafeAreaView>
   );
 }
@@ -343,9 +276,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  permissionState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+    padding: 24,
+  },
+  permissionText: {
+    ...typography.body,
+    textAlign: 'center',
+    color: colors.textMain + '90',
+  },
   cameraBox: {
     width: '100%',
-    aspectRatio: 3/4,
+    aspectRatio: 3 / 4,
     backgroundColor: '#000',
     borderRadius: 32,
     borderWidth: 4,
@@ -356,6 +301,8 @@ const styles = StyleSheet.create({
   },
   cameraPreview: {
     ...StyleSheet.absoluteFill,
+    width: '100%',
+    height: '100%',
   },
   cameraFrame: {
     ...StyleSheet.absoluteFill,
@@ -375,12 +322,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   galleryBtn: {
-    width: 48,
+    minWidth: 48,
     height: 48,
     borderRadius: 24,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  galleryBtnText: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: 12,
   },
   galleryBtnPlaceholder: {
     width: 48,
@@ -445,7 +398,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.borderMain + '50',
-    marginBottom: -40, // overlap
+    marginBottom: -40,
   },
   previewImage: {
     width: '100%',
@@ -608,5 +561,5 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '700',
     color: colors.textMain + '80',
-  }
+  },
 });

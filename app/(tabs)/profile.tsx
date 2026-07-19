@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -25,6 +25,13 @@ export default function ProfileScreen() {
   const xp = petStatus?.exp || 0;
   const maxXp = level * 100;
   const progress = Math.min((xp / maxXp) * 100, 100);
+  const initials = (user?.name || 'Nông dân')
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  const badgeLabel = level >= 10 ? 'Chuyên Gia' : level >= 5 ? 'Nhà Vườn' : 'Tân Binh';
   const displayName = user?.name || 'Nông dân Farmy';
   const avatarInitial = displayName.trim().charAt(0).toUpperCase() || 'F';
   const roleLabel = user?.role?.toLowerCase() === 'admin' ? 'Quản trị viên' : 'Nông dân';
@@ -38,14 +45,10 @@ export default function ProfileScreen() {
         {/* Profile Info */}
         <View style={styles.profileCard}>
           {user?.avatarUrl ? (
-            <Image 
-              source={{ uri: user.avatarUrl }} 
-              style={styles.avatar}
-              accessibilityLabel="Ảnh đại diện người dùng"
-            />
+            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} accessibilityLabel="Ảnh đại diện người dùng" />
           ) : (
-            <View style={[styles.avatar, styles.avatarFallback]} accessibilityLabel="Ảnh đại diện mặc định">
-              <Text style={styles.avatarInitial}>{avatarInitial}</Text>
+            <View style={styles.avatarFallback} accessibilityLabel="Ảnh đại diện người dùng">
+              <Text style={styles.avatarInitials}>{initials}</Text>
             </View>
           )}
           <View style={styles.profileInfo}>
@@ -58,16 +61,16 @@ export default function ProfileScreen() {
           
           <View style={[styles.badgeOverlay, isCompact && styles.badgeOverlayCompact]}>
             <Award size={14} color="#B45309" />
-            <Text style={styles.badgeText}>{roleLabel}</Text>
+            <Text style={styles.badgeText}>{badgeLabel}</Text>
           </View>
         </View>
 
         {/* Level XP Card */}
         <View style={styles.xpCard}>
           {isPetLoading ? (
-            <View style={styles.xpStateRow}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={styles.xpStateText}>Đang tải cấp độ...</Text>
+            <View style={styles.xpLoadingRow}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={styles.xpStateText}>Đang tải XP...</Text>
             </View>
           ) : petError ? (
             <Text style={styles.xpStateText}>Chưa thể tải XP. Kéo xuống hoặc mở lại hồ sơ để thử lại.</Text>
@@ -90,12 +93,12 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* Badge Shelf */}
+        {/* Badge collection */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Huy hiệu</Text>
+            <Text style={styles.sectionTitle}>Bộ huy hiệu</Text>
             <TouchableOpacity onPress={() => router.push('/shop')} accessibilityRole="button" accessibilityLabel="Mở cửa hàng" activeOpacity={0.7}>
-              <Text style={styles.sectionLink}>Mở cửa hàng →</Text>
+            <Text style={styles.sectionLink}>Đến cửa hàng →</Text>
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgeScroll}>
@@ -103,19 +106,19 @@ export default function ProfileScreen() {
               <View style={[styles.badgeIconBg, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
                 <Medal size={28} color="#EAB308" />
               </View>
-              <Text style={styles.badgeName}>Vụ đầu tiên</Text>
+              <Text style={styles.badgeName}>Thu hoạch đầu</Text>
             </View>
             <View style={styles.badgeCard}>
               <View style={[styles.badgeIconBg, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
                 <Droplets size={28} color="#3B82F6" />
               </View>
-              <Text style={styles.badgeName}>Tưới nước đều</Text>
+              <Text style={styles.badgeName}>Tiết kiệm nước</Text>
             </View>
             <View style={styles.badgeCard}>
               <View style={[styles.badgeIconBg, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
                 <ShieldAlert size={28} color={colors.error} />
               </View>
-              <Text style={styles.badgeName}>Săn sâu bệnh</Text>
+              <Text style={styles.badgeName}>Bắt sâu bệnh</Text>
             </View>
           </ScrollView>
         </View>
@@ -138,28 +141,24 @@ export default function ProfileScreen() {
               </View>
               <ChevronRight size={20} color={colors.borderMain} />
             </TouchableOpacity>
-            <View style={[styles.settingItem, styles.settingItemDisabled]}>
+            <TouchableOpacity style={styles.settingItem} onPress={() => Alert.alert('Cài đặt ứng dụng', 'Màn hình cài đặt sẽ được bổ sung khi có thêm tùy chọn cấu hình.')} activeOpacity={0.7} accessibilityRole="button">
               <View style={styles.settingLeft}>
                 <View style={styles.settingIconBg}>
                   <Settings size={20} color={colors.textMain + 'B0'} />
                 </View>
-                <View>
-                  <Text style={styles.settingText}>Cài đặt ứng dụng</Text>
-                  <Text style={styles.settingHint}>Sắp ra mắt</Text>
-                </View>
+                <Text style={styles.settingText}>Cài đặt ứng dụng</Text>
               </View>
-            </View>
-            <View style={[styles.settingItem, styles.settingItemLast, styles.settingItemDisabled]}>
+              <ChevronRight size={20} color={colors.borderMain} />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.settingItem, styles.settingItemLast]} onPress={() => Alert.alert('Hỗ trợ', 'Liên hệ nhóm Farmy để được hỗ trợ.')} activeOpacity={0.7} accessibilityRole="button">
               <View style={styles.settingLeft}>
                 <View style={styles.settingIconBg}>
                   <HelpCircle size={20} color={colors.textMain + 'B0'} />
                 </View>
-                <View>
-                  <Text style={styles.settingText}>Trợ giúp & hỗ trợ</Text>
-                  <Text style={styles.settingHint}>Sắp ra mắt</Text>
-                </View>
+                <Text style={styles.settingText}>Trợ giúp & hỗ trợ</Text>
               </View>
-            </View>
+              <ChevronRight size={20} color={colors.borderMain} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -214,12 +213,18 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   avatarFallback: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: colors.bgSurface,
     backgroundColor: colors.primaryLightest,
+    marginRight: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  avatarInitial: {
-    ...typography.h2,
+  avatarInitials: {
+    ...typography.h3,
     color: colors.primary,
     fontWeight: '800',
   },
@@ -286,6 +291,11 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     fontWeight: '700',
     color: colors.textMain + 'B0',
+  },
+  xpLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   xpHeader: {
     flexDirection: 'row',
