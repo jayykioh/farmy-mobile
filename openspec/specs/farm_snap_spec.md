@@ -7,7 +7,7 @@
     *   Bacterial Leaf Blight (Bạc lá)
 
 ## 2. API Response Interface
-*   Endpoint: `POST /plant-scan/analyze`
+*   Endpoint: `POST /plant-scans`
 *   Response Payload Schema:
     ```json
     {

@@ -99,6 +99,21 @@ export default function ShopScreen() {
     }
   };
 
+  const handleUnequip = async (itemId: string) => {
+    try {
+      setPendingItemId(itemId);
+      const res = await api.post('/shop/unequip', { itemId });
+      if (res.data.success) {
+        Alert.alert('Thành công', 'Đã tháo phụ kiện khỏi Bé Thóc');
+        await handleRefresh();
+      }
+    } catch (err: any) {
+      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể tháo vật phẩm.');
+    } finally {
+      setPendingItemId(null);
+    }
+  };
+
   const normalizedItems = items.map(item => ({
     ...item,
     price: item.price ?? 0,
@@ -207,8 +222,8 @@ export default function ShopScreen() {
                   </View>
 
                   {item.equipped ? (
-                    <TouchableOpacity style={[styles.actionBtn, styles.btnEquipped]} disabled>
-                      <Text style={styles.btnTextEquipped}>Đã trang bị</Text>
+                    <TouchableOpacity style={[styles.actionBtn, styles.btnUnequip]} onPress={() => handleUnequip(item._id)} disabled={!!pendingItemId}>
+                      <Text style={styles.btnTextUnequip}>{isPending ? 'Đang tháo...' : 'Tháo'}</Text>
                     </TouchableOpacity>
                   ) : item.owned ? (
                     <TouchableOpacity style={[styles.actionBtn, styles.btnOwned]} onPress={() => handleEquip(item._id)} disabled={!!pendingItemId}>
@@ -454,15 +469,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
   },
-  btnEquipped: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primaryContainer,
-    borderBottomWidth: 3,
+  btnUnequip: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
   },
-  btnTextEquipped: {
+  btnTextUnequip: {
     fontSize: 12,
     fontWeight: '800',
-    color: colors.bgSurface,
+    color: colors.error,
   },
   btnOwned: {
     backgroundColor: colors.bgSurface,

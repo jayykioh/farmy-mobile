@@ -9,14 +9,14 @@
     *   `Max_XP = level * 100`.
     *   `progress` (Thanh tiến trình) = `Math.min((exp / Max_XP) * 100, 100)`.
 *   **Key APIs:**
-    *   `GET /pets/status`: Returns current level, experience points, and equipped apparel IDs.
+    *   `GET /pet/status`: Returns current level, experience points, and equipped apparel IDs.
 
 ## 2. Mascot Clothing Shop
 *   **Route:** `app/shop.tsx`
 *   **Overview:** Allows users to spend accumulated currency or XP to customize the appearance of their mascot.
 *   **Key APIs:**
     *   `GET /shop/items`: Retrieves lists of available apparel items (Hats, Shirts, Glasses) grouped by category.
-    *   `POST /shop/purchase`: Deducts currency/XP to unlock an item.
+    *   `POST /shop/buy`: Deducts currency/XP to unlock an item.
     *   `POST /shop/equip`: Toggles the active status of an owned item on the mascot.
 *   **Interactive Shop Preview:**
     *   Selecting an item in the shop updates the local state immediately, allowing users to preview what "Bé Thóc" looks like with the outfit before deciding to buy or equip.

@@ -8,6 +8,7 @@ import { Button } from '../src/components/Button';
 import { useState, useEffect } from 'react';
 import { api } from '../src/api/client';
 import { getErrorMessage } from '../src/utils/errors';
+import { usePetStatus } from '../src/hooks/usePet';
 
 interface ReminderItem {
   _id: string;
@@ -62,6 +63,9 @@ export default function RemindersScreen() {
   const [reminderType, setReminderType] = useState<ReminderType>('water');
   const [frequency, setFrequency] = useState<ReminderFrequency>('daily');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingReminderId, setPendingReminderId] = useState<string | null>(null);
+  const { refetch: refetchPet } = usePetStatus();
 
   const fetchReminders = async () => {
     try {
@@ -72,7 +76,7 @@ export default function RemindersScreen() {
         setError(null);
       }
     } catch (err) {
-      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể tải nhắc nhở.'));
+      setError(getErrorMessage(err, 'Không thể tải nhắc nhở.'));
     } finally {
       setIsLoading(false);
     }
@@ -92,22 +96,27 @@ export default function RemindersScreen() {
       }
     } catch (err) {
       Alert.alert('Lỗi', getErrorMessage(err, 'Không thể cập nhật nhắc nhở.'));
+    } finally {
+      setPendingReminderId(null);
     }
   };
 
   const handleCancel = async (id: string) => {
     Alert.alert('Xác nhận', 'Bạn muốn hủy nhắc nhở này?', [
       { text: 'Quay lại', style: 'cancel' },
-          { text: 'Xác nhận hủy', style: 'destructive', onPress: async () => {
-            try {
-              await api.patch(`/reminders/${id}/cancel`);
-              Alert.alert('Thành công', 'Đã hủy nhắc nhở.');
-              fetchReminders();
-            } catch (err) {
-              Alert.alert('Lỗi', getErrorMessage(err, 'Không thể hủy nhắc nhở.'));
-            }
-          }}
-      ]);
+      { text: 'Xác nhận hủy', style: 'destructive', onPress: async () => {
+          try {
+            setPendingReminderId(id);
+            await api.patch(`/reminders/${id}/cancel`);
+            Alert.alert('Thành công', 'Đã hủy nhắc nhở.');
+            await fetchReminders();
+          } catch (err) {
+            Alert.alert('Lỗi', getErrorMessage(err, 'Không thể hủy nhắc nhở.'));
+          } finally {
+            setPendingReminderId(null);
+          }
+        }}
+    ]);
   };
 
   const handleCreateReminder = async () => {
@@ -154,7 +163,7 @@ export default function RemindersScreen() {
   };
 
   const upcomingReminders = reminders
-    .filter(item => item.status === 'pending' && new Date(item.scheduled_at).getTime() >= Date.now())
+    .filter(item => item.status === 'pending')
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
 
   return (
@@ -191,8 +200,8 @@ export default function RemindersScreen() {
         ) : (
           <View style={styles.listContainer}>
             {upcomingReminders.map(item => {
-              const frequencyLabel = getFrequencyLabel(item.frequency);
               const isPending = pendingReminderId === item._id;
+              const isOverdue = new Date(item.scheduled_at).getTime() < Date.now();
               return (
               <View key={item._id} style={styles.reminderCard}>
                 <View style={styles.iconContainer}>
@@ -213,6 +222,11 @@ export default function RemindersScreen() {
                     <View style={styles.tagPush}>
                       <Text style={styles.tagPushText}>{item.status}</Text>
                     </View>
+                    {isOverdue && (
+                      <View style={styles.tagOverdue}>
+                        <Text style={styles.tagOverdueText}>Quá hạn</Text>
+                      </View>
+                    )}
                     {item.frequency && item.frequency !== 'none' && (
                       <View style={styles.tagRepeat}>
                         <Repeat size={10} color="#B45309" />
@@ -410,6 +424,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     color: colors.textMain + 'B0',
+    textTransform: 'uppercase',
+  },
+  tagOverdue: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  tagOverdueText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.error,
     textTransform: 'uppercase',
   },
   tagRepeat: {

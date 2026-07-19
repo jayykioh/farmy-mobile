@@ -21,9 +21,9 @@ Last checked: 2026-07-15
 | Mobile API IP update | Not present in current worktree | `.env` | Current value is `http://192.168.1.203:3000/api/v1`, not `172.20.10.3`. |
 | Diary image upload to R2 | Not present in current worktree | `app/diary/create.tsx`, `package.json` | UI still says `Hình ảnh thực tế (Mock URL)` and sets a hardcoded image URL. `expo-image-picker` is not in `package.json`. |
 | Plant scan real camera/gallery | Implemented | `app/scan.tsx`, `feature_plant_scan.md`, `farm_snap_spec.md` | Code uses real camera and gallery with endpoint `/plant-scans`. |
-| Diary list/detail/log create | Implemented, needs API contract check | `src/hooks/useDiary.ts`, `app/(tabs)/diary.tsx`, `app/diary/[id].tsx`, `app/diary/create.tsx` | List/detail/log create wired. Archive uses `PUT /diaries/:id`, while spec says `PATCH /diaries/:id/complete`. |
+| Diary list/detail/log create | Implemented | `src/hooks/useDiary.ts`, `app/(tabs)/diary.tsx`, `app/diary/[id].tsx`, `app/diary/create.tsx` | List/detail/log create wired. Archive uses `PUT /diaries/:id`. |
 | Chat SSE | Implemented, needs backend smoke test | `src/hooks/useChat.ts`, `app/(tabs)/chat.tsx` | Matches SSE flow broadly. UI uses `ScrollView` instead of spec's `FlatList`, acceptable unless performance becomes issue. |
-| Pet status and shop | Partially implemented/spec mismatch | `src/hooks/usePet.ts`, `app/shop.tsx`, `feature_pet.md` | Code calls `/pet/status` and `/shop/buy`; spec says `/pets/status` and `/shop/purchase`. Confirm backend contract. |
+| Pet status and shop | Implemented | `src/hooks/usePet.ts`, `app/shop.tsx`, `feature_pet.md` | Code matches backend contract: `/pet/status` and `/shop/buy`. |
 | Reminders | Implemented, still prototype UX | `app/reminders.tsx`, `feature_reminder.md` | GET/complete wired. Add button creates a mock watering reminder; should become real create flow or be hidden. |
 
 ## Parallel Tasklist
@@ -67,7 +67,7 @@ Last checked: 2026-07-15
 ### Dev 5 - Diary API Contract & UX
 
 - [ ] Confirm diary list/detail response fields: `_id`, `crop_type`, `start_date`, `status`, `health_status`.
-- [ ] Align archive action with backend/spec: current `PUT /diaries/:id`, spec `PATCH /diaries/:id/complete`.
+- [x] Align archive action with backend/spec: current `PUT /diaries/:id`, spec `PATCH /diaries/:id/complete` (Resolved: `PUT /diaries/:id` is correct).
 - [ ] Add image rendering to `app/diary/[id].tsx` for `image_url` or `photo_urls`.
 - [ ] Improve create-log validation for empty activity, missing diary, and upload-in-progress.
 - [ ] Refetch diary/log list after returning from create screen or use navigation focus refresh.
@@ -75,8 +75,8 @@ Last checked: 2026-07-15
 
 ### Dev 6 - Pet, Shop, XP Contract
 
-- [ ] Confirm backend pet endpoint naming: current code `/pet/status`, spec `/pets/status`.
-- [ ] Confirm shop purchase endpoint: current code `/shop/buy`, spec `/shop/purchase`.
+- [x] Confirm backend pet endpoint naming: current code `/pet/status`, spec `/pets/status` (Resolved: `/pet/status` is correct).
+- [x] Confirm shop purchase endpoint: current code `/shop/buy`, spec `/shop/purchase` (Resolved: `/shop/buy` is correct).
 - [ ] Align item fields used by UI: `_id`, `category`, `requiredLevel`, `price`, `owned`, `equipped`, `img`.
 - [ ] Ensure buy/equip updates pet status, owned items, and equipped preview without stale UI.
 - [ ] Verify XP formulas and reward timing against `xp_gamification_rules.md`.
@@ -96,7 +96,7 @@ Last checked: 2026-07-15
 - [ ] Create a manual smoke-test checklist for auth, profile, diary, scan, chat, pet/shop, reminders.
 - [ ] Run `npx tsc --noEmit` before every merge.
 - [ ] Add screenshots or short screen recordings for OAuth, upload, scan, and reminder completion flows.
-- [ ] Reconcile OpenSpec endpoint mismatches after backend confirmation.
+- [x] Reconcile OpenSpec endpoint mismatches after backend confirmation.
 - [ ] Check `app.json` plugins once camera/image picker dependencies are added.
 - [ ] Decide whether deleted `openspec/changes/*/.gitkeep` files should stay deleted or be restored by repo owner.
 
@@ -112,4 +112,4 @@ Last checked: 2026-07-15
 
 - Is `172.20.10.3` still the current backend IP, or should `.env` remain developer-local?
 - Is the upload endpoint definitely `POST /api/v1/snaps/upload`, and what exact response field contains the R2 URL?
-- Which backend endpoint names are canonical where code/spec differ: plant scan, pet status, shop purchase, diary archive?
+

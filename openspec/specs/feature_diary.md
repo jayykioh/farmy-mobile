@@ -30,6 +30,6 @@
     *   `GET /diaries/:id`: Gets crop cycle metadata.
     *   `GET /diaries/:id/logs`: Retrieves the historical log list.
     *   `POST /diaries/:id/logs`: Appends a new activity log.
-    *   `PATCH /diaries/:id/complete`: Marks the crop cycle as archived/complete.
+    *   `PUT /diaries/:id`: Updates the crop cycle (e.g., marks as archived/complete).
 *   **Timeline Logs:**
     *   Activity logs can be categorized (e.g., watering, fertilizing, weeding, spraying, harvesting) and display specific icon identifiers.

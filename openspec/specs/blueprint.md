@@ -14,6 +14,6 @@
 ## 2. Core Modules Architecture
 *   **Authentication Module:** `login.tsx` -> `authStore` -> `AsyncStorage` -> Navigation routing.
 *   **Diary Module:** `diary.tsx` -> `useDiaryDetail` -> `[id].tsx` (Timeline logs display).
-*   **AI Scan Module:** `scan.tsx` -> `Camera/Picker` -> `FormData` -> `/plant-scan/analyze`.
+*   **AI Scan Module:** `scan.tsx` -> `Camera/Picker` -> `FormData` -> `/plant-scans`.
 *   **AI Chat Module:** `chat.tsx` -> `react-native-sse` -> `chatService.stream`.
 *   **Shop Module:** `shop.tsx` -> `usePetStatus` -> Buy/Equip items payload.
