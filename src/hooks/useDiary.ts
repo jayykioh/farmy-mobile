@@ -29,7 +29,11 @@ export function useDiaries() {
   const { isAuthenticated } = useAuthStore();
 
   const fetchDiaries = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setData([]);
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       const res = await api.get('/diaries');
@@ -55,7 +59,11 @@ export function useDiaryDetail(id: string) {
   const { isAuthenticated } = useAuthStore();
 
   const fetchDetail = useCallback(async () => {
-    if (!isAuthenticated || !id) return;
+    if (!isAuthenticated || !id) {
+      setData(null);
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       const res = await api.get(`/diaries/${id}`);
@@ -81,7 +89,11 @@ export function useDiaryLogs(id: string) {
   const { isAuthenticated } = useAuthStore();
 
   const fetchLogs = useCallback(async () => {
-    if (!isAuthenticated || !id) return;
+    if (!isAuthenticated || !id) {
+      setData([]);
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       const res = await api.get(`/diaries/${id}/logs`);

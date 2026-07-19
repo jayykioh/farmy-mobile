@@ -20,7 +20,12 @@ export function usePetStatus() {
   const { isAuthenticated } = useAuthStore();
 
   const fetchPet = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setData(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       const res = await api.get('/pet/status');

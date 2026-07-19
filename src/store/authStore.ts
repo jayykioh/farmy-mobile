@@ -8,8 +8,18 @@ export interface User {
   name: string;
   role: string;
   farmId?: string;
+  avatarUrl?: string;
+  location?: string;
   onboardingCompleted?: boolean;
 }
+
+type RawUser = Partial<User> & {
+  _id?: string;
+  farm_id?: string;
+  avatar_url?: string;
+  picture?: string;
+  onboarding_completed?: boolean;
+};
 
 interface AuthState {
   user: User | null;
@@ -21,6 +31,19 @@ interface AuthState {
   login: (payload: any) => Promise<void>;
   registerUser: (payload: any) => Promise<void>;
 }
+
+const normalizeUser = (rawUser: RawUser): User => ({
+  ...rawUser,
+  id: rawUser?.id ?? rawUser?._id ?? '',
+  email: rawUser?.email ?? '',
+  name: rawUser?.name ?? '',
+  role: rawUser?.role ?? 'farmer',
+  farmId: rawUser?.farmId ?? rawUser?.farm_id,
+  avatarUrl: rawUser?.avatarUrl ?? rawUser?.avatar_url ?? rawUser?.picture,
+  onboardingCompleted: rawUser?.onboardingCompleted ?? rawUser?.onboarding_completed,
+});
+
+const getAccessToken = (data: { access_token?: string; accessToken?: string }): string | undefined => data.access_token ?? data.accessToken;
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
@@ -37,8 +60,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       
       const response = await api.get('/auth/me');
+      const rawUser = response.data.data?.user ?? response.data.data;
       set({
-        user: response.data.data,
+        user: normalizeUser(rawUser),
         isAuthenticated: true,
         isLoading: false,
       });
@@ -51,21 +75,25 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setSession: async (user: User, accessToken: string) => {
     await AsyncStorage.setItem('access_token', accessToken);
-    set({ user, isAuthenticated: true, isLoading: false });
+    set({ user: normalizeUser(user), isAuthenticated: true, isLoading: false });
   },
 
   login: async (payload) => {
     const { data } = await api.post('/auth/login', payload);
-    const { access_token, user } = data.data;
-    await AsyncStorage.setItem('access_token', access_token);
-    set({ user, isAuthenticated: true, isLoading: false });
+    const accessToken = getAccessToken(data.data);
+    const { user } = data.data;
+    if (!accessToken) throw new Error('Không nhận được access token từ máy chủ.');
+    await AsyncStorage.setItem('access_token', accessToken);
+    set({ user: normalizeUser(user), isAuthenticated: true, isLoading: false });
   },
 
   registerUser: async (payload) => {
     const { data } = await api.post('/auth/register', payload);
-    const { access_token, user } = data.data;
-    await AsyncStorage.setItem('access_token', access_token);
-    set({ user, isAuthenticated: true, isLoading: false });
+    const accessToken = getAccessToken(data.data);
+    const { user } = data.data;
+    if (!accessToken) throw new Error('Không nhận được access token từ máy chủ.');
+    await AsyncStorage.setItem('access_token', accessToken);
+    set({ user: normalizeUser(user), isAuthenticated: true, isLoading: false });
   },
 
   logout: async () => {
@@ -75,7 +103,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       console.error('Logout failed', error);
     } finally {
       await AsyncStorage.removeItem('access_token');
-      set({ user: null, isAuthenticated: false });
+      set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
 }));

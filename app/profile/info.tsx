@@ -1,6 +1,5 @@
-import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
 import { useAuthStore } from '../../src/store/authStore';
@@ -8,17 +7,20 @@ import { PageHeader } from '../../src/components/PageHeader';
 import { Mail, Shield, User, Landmark, Calendar } from 'lucide-react-native';
 
 export default function ProfileInfoScreen() {
-  const { user } = useAuthStore();
-  const router = useRouter();
+  const { user, isLoading } = useAuthStore();
 
   // Nhãn hiển thị cho vai trò
   const getRoleLabel = (role?: string) => {
     switch (role?.toLowerCase()) {
       case 'admin': return 'Quản trị viên';
       case 'user': return 'Nông dân';
+      case 'farmer': return 'Nông dân';
       default: return role || 'Nông dân';
     }
   };
+
+  const displayName = user?.name || 'Nông dân Farmy';
+  const avatarInitial = displayName.trim().charAt(0).toUpperCase() || 'F';
 
   const infoItems = [
     {
@@ -52,16 +54,29 @@ export default function ProfileInfoScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <PageHeader title="Thông tin cá nhân" showBack={true} fallbackHref="/(tabs)/profile" />
+      {isLoading ? (
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.centerStateText}>Đang tải hồ sơ...</Text>
+        </View>
+      ) : !user ? (
+        <View style={styles.centerState}>
+          <Text style={styles.centerStateText}>Bạn cần đăng nhập để xem thông tin cá nhân.</Text>
+        </View>
+      ) : (
       
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* Avatar Section */}
         <View style={styles.avatarSection}>
-          <Image 
-            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDsbCWDiuGTF5iEwK2O9pm1CMMzFdWx0hc4ellAPSIR0Fd0W04AaUk2McKFTBpkyt54F7qbz59AxRVm00X7l_paTxXsYAhKb0DJ2UtW18iwcftc8NpvHSUtky7QtZ3LYS_Jvnwzb_uyHj7Snd_GZJ5qRjx6kGvs2Y-yZafDMesEmvqIG9HZ3b06V39xa_0py0IGkepiBfpB_L-Nfe8YfQg-4VDdxhF78xd9seUk1RNYLfCuF3wEdwSvukiK2uu0wpN98-IjRJs9NRru' }} 
-            style={styles.avatar}
-          />
-          <Text style={styles.avatarName}>{user?.name || 'Nông dân'}</Text>
+          {user.avatarUrl ? (
+            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]}>
+              <Text style={styles.avatarInitial}>{avatarInitial}</Text>
+            </View>
+          )}
+          <Text style={styles.avatarName}>{displayName}</Text>
           <Text style={styles.avatarSub}>{getRoleLabel(user?.role)} • Farmy</Text>
         </View>
 
@@ -92,7 +107,8 @@ export default function ProfileInfoScreen() {
           ))}
         </View>
 
-      </ScrollView>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -105,6 +121,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 24,
     paddingBottom: 40,
+  },
+  centerState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  centerStateText: {
+    ...typography.body,
+    color: colors.textMain + 'B0',
+    textAlign: 'center',
+    fontWeight: '700',
   },
   avatarSection: {
     alignItems: 'center',
@@ -123,6 +152,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
+  },
+  avatarFallback: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLightest,
+  },
+  avatarInitial: {
+    ...typography.h1,
+    color: colors.primary,
+    fontWeight: '800',
   },
   avatarName: {
     ...typography.h2,
