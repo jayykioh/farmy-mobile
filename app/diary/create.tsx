@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Image, ActivityIndicator, Alert, DeviceEventEmitter } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -13,6 +13,10 @@ import { api } from '../../src/api/client';
 import { createDiaryRequestHash } from '../../src/utils/diaryHash';
 import * as ImagePicker from 'expo-image-picker';
 import { getErrorMessage } from '../../src/utils/errors';
+
+const generateIdempotencyKey = () => {
+  return `${Math.random().toString(36).substring(2, 15)}-${Date.now()}`;
+};
 
 export default function CreateDiaryScreen() {
   const router = useRouter();
@@ -84,15 +88,10 @@ export default function CreateDiaryScreen() {
   const activeDiaries = diaries
     .filter(diary => diary.status === 'active')
     .sort((a, b) => new Date(b.start_date || 0).getTime() - new Date(a.start_date || 0).getTime());
-  const selectedDiary = activeDiaries.find(diary => diary._id === selectedDiaryId) || null;
+  
+  const currentSelectedId = selectedDiaryId || (activeDiaries.length > 0 ? activeDiaries[0]._id : null);
+  const selectedDiary = activeDiaries.find(diary => diary._id === currentSelectedId) || null;
   const isSaveDisabled = isSubmitting || isUploading || isLoading || !selectedDiary;
-
-  useEffect(() => {
-    if (isLoading || activeDiaries.length === 0) return;
-    if (selectedDiaryId && activeDiaries.some(diary => diary._id === selectedDiaryId)) return;
-
-    setSelectedDiaryId(activeDiaries[0]._id);
-  }, [activeDiaries, isLoading, selectedDiaryId]);
 
   const handleSave = async () => {
     if (isUploading) {
@@ -112,7 +111,7 @@ export default function CreateDiaryScreen() {
     setIsSubmitting(true);
     try {
       const diaryDate = new Date().toISOString();
-      const idempotencyKey = `${Math.random().toString(36).substring(2, 15)}-${Date.now()}`;
+      const idempotencyKey = generateIdempotencyKey();
       
       const payload = {
         diaryId: selectedDiary._id,
@@ -137,6 +136,10 @@ export default function CreateDiaryScreen() {
           'X-Request-Hash': requestHash,
         }
       });
+
+      // Phát sự kiện đồng bộ
+      DeviceEventEmitter.emit('diary_updated');
+      DeviceEventEmitter.emit('pet_updated');
 
       Alert.alert('Thành công', 'Đã lưu nhật ký mới.', [
         { text: 'OK', onPress: () => goBackOrReplace(router, '/(tabs)/diary') }

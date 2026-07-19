@@ -1,5 +1,5 @@
 import { Redirect, Tabs } from 'expo-router';
-import { Home, BookText, Bot, User } from 'lucide-react-native';
+import { Home, BookText, Bot, User, Sparkles } from 'lucide-react-native';
 import { colors } from '../../src/theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/store/authStore';

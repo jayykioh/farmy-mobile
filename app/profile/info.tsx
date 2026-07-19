@@ -7,7 +7,7 @@ import { PageHeader } from '../../src/components/PageHeader';
 import { Mail, Shield, User, Landmark, Calendar } from 'lucide-react-native';
 
 export default function ProfileInfoScreen() {
-  const { user } = useAuthStore();
+  const { user, isLoading } = useAuthStore();
   const initials = (user?.name || 'Nông dân')
     .split(' ')
     .map(part => part[0])

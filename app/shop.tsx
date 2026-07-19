@@ -13,23 +13,12 @@ interface ShopItem {
   _id: string;
   name: string;
   category: string;
-  price: number;
-  requiredLevel: number;
+  price?: number;
+  requiredLevel?: number;
   owned?: boolean;
   equipped?: boolean;
   img?: string;
 }
-
-type ShopItem = {
-  _id: string;
-  name: string;
-  category: string;
-  price?: number;
-  requiredLevel?: number;
-  img?: string;
-  owned?: boolean;
-  equipped?: boolean;
-};
 
 export default function ShopScreen() {
   const categories = [
@@ -83,6 +72,8 @@ export default function ShopScreen() {
       }
     } catch (err) {
       Alert.alert('Lỗi', getErrorMessage(err, 'Không thể mua vật phẩm.'));
+    } finally {
+      setPendingItemId(null);
     }
   };
 
@@ -96,6 +87,8 @@ export default function ShopScreen() {
       }
     } catch (err) {
       Alert.alert('Lỗi', getErrorMessage(err, 'Không thể trang bị vật phẩm.'));
+    } finally {
+      setPendingItemId(null);
     }
   };
 
