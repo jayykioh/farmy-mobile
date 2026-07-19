@@ -89,8 +89,6 @@ export default function DiaryHistoryScreen() {
     }
   };
 
-
-
   const handleRefresh = () => {
     refetchDiary();
     refetchLogs();
