@@ -6,6 +6,8 @@ export type WeeklyInsight = {
   week_start_date: string;
   insight_text: string;
   created_at: string;
+  model_used?: string;
+  tokens_used?: number;
 };
 
 export const fetchWeeklyInsights = async (limit: number = 10): Promise<WeeklyInsight[]> => {

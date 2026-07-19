@@ -158,13 +158,13 @@ export default function InsightScreen() {
         ) : (
           <View style={styles.listContainer}>
             {insights.map((insight) => {
-              const isExpanded = expandedId === insight._id;
+              const isExpanded = expandedId === insight.id;
               return (
-                <View key={insight._id} style={[styles.card, isExpanded && styles.expandedCard]}>
+                <View key={insight.id} style={[styles.card, isExpanded && styles.expandedCard]}>
                   {/* Card Header */}
                   <TouchableOpacity
                     style={styles.cardHeader}
-                    onPress={() => toggleExpand(insight._id)}
+                    onPress={() => toggleExpand(insight.id)}
                     activeOpacity={0.7}
                   >
                     <View style={styles.headerLeft}>
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   },
   triggerButtonText: {
     color: '#fff',
-    fontFamily: typography.bold,
+    fontWeight: '700',
     fontSize: 14,
   },
   emptyContainer: {
@@ -268,14 +268,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontFamily: typography.bold,
+    fontWeight: '700',
     color: colors.textMain,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyDescription: {
     fontSize: 14,
-    fontFamily: typography.regular,
+    fontWeight: '400',
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 15,
-    fontFamily: typography.bold,
+    fontWeight: '700',
     color: colors.textMain,
     marginBottom: 4,
   },
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   },
   cardDate: {
     fontSize: 12,
-    fontFamily: typography.medium,
+    fontWeight: '500',
     color: colors.textMuted,
   },
   cardBody: {
@@ -358,26 +358,26 @@ const styles = StyleSheet.create({
   },
   heading2: {
     fontSize: 16,
-    fontFamily: typography.bold,
+    fontWeight: '700',
     color: colors.textMain,
     marginTop: 8,
     marginBottom: 4,
   },
   heading3: {
     fontSize: 14.5,
-    fontFamily: typography.bold,
+    fontWeight: '700',
     color: colors.textMain,
     marginTop: 6,
     marginBottom: 2,
   },
   paragraph: {
     fontSize: 13.5,
-    fontFamily: typography.regular,
+    fontWeight: '400',
     color: colors.textMain + 'e6',
     lineHeight: 20,
   },
   boldText: {
-    fontFamily: typography.bold,
+    fontWeight: '700',
     color: colors.textMain,
   },
   listItem: {
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   },
   listNumber: {
     fontSize: 13,
-    fontFamily: typography.bold,
+    fontWeight: '700',
     color: colors.primary,
     marginRight: 6,
     lineHeight: 18,
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   listText: {
     flex: 1,
     fontSize: 13.5,
-    fontFamily: typography.regular,
+    fontWeight: '400',
     color: colors.textMain + 'e6',
     lineHeight: 19,
   },
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   },
   metadataText: {
     fontSize: 10,
-    fontFamily: typography.medium,
+    fontWeight: '500',
     color: colors.textMuted,
   },
 });
