@@ -3,20 +3,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
 import { PageHeader } from '../src/components/PageHeader';
-import { RefreshCcw, Info, Image as ImageIcon } from 'lucide-react-native';
-import { useState, useRef } from 'react';
+import { RefreshCcw, Info } from 'lucide-react-native';
+import { useState } from 'react';
 import { Button } from '../src/components/Button';
 import { useRouter } from 'expo-router';
 import { api } from '../src/api/client';
-import { CameraView, useCameraPermissions, type CameraCapturedPicture } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import { getErrorMessage } from '../src/utils/errors';
 
 type ScanState = 'viewfinder' | 'analyzing' | 'result';
 
-type Diagnosis = {
+interface PlantDiagnosis {
   is_plant?: boolean;
   disease?: string;
-  disease_name?: string;
   confidence?: number;
   symptoms?: string[];
   treatment?: {
@@ -25,40 +24,11 @@ type Diagnosis = {
     phi_warning?: string;
   };
   safety_alert?: string;
-};
-
-type ImageUploadSource = {
-  uri: string;
-  name?: string | null;
-  type?: string | null;
-};
-
-const getImageFileName = (source: ImageUploadSource) =>
-  source.name || source.uri.split('/').pop()?.split('?')[0] || 'scan.jpg';
-
-const getImageMimeType = (source: ImageUploadSource) => {
-  if (source.type) return source.type;
-
-  const extension = getImageFileName(source).split('.').pop()?.toLowerCase();
-  if (extension === 'png') return 'image/png';
-  if (extension === 'heic' || extension === 'heif') return `image/${extension}`;
-  return 'image/jpeg';
-};
-
-const normalizeDiagnosis = (payload: unknown): Diagnosis | null => {
-  if (!payload || typeof payload !== 'object') return null;
-
-  const response = payload as { data?: unknown };
-  const data = response.data as { diagnosis?: unknown } | undefined;
-  const diagnosis = data && typeof data === 'object' && 'diagnosis' in data ? data.diagnosis : response.data;
-
-  if (!diagnosis || typeof diagnosis !== 'object') return null;
-  return diagnosis as Diagnosis;
-};
+}
 
 export default function ScanScreen() {
   const [scanState, setScanState] = useState<ScanState>('viewfinder');
-  const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
+  const [diagnosis, setDiagnosis] = useState<PlantDiagnosis | null>(null);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const router = useRouter();
@@ -66,32 +36,41 @@ export default function ScanScreen() {
   const cameraRef = useRef<CameraView | null>(null);
   const isProcessingRef = useRef(false);
 
-  const resetToViewfinder = () => {
-    setScanState('viewfinder');
-    setIsCameraReady(false);
-  };
-
-  const processImage = async (source: ImageUploadSource) => {
-    if (isProcessingRef.current) return;
-
-    isProcessingRef.current = true;
-    setScanState('analyzing');
-    setScannedImage(source.uri);
-
+  const handleCapture = async () => {
     try {
-      const formData = new FormData();
-      const filename = getImageFileName(source);
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Cần quyền camera', 'Farmy cần quyền camera để chụp ảnh lá cây chẩn đoán.');
+        return;
+      }
 
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.85,
+      });
+
+      if (result.canceled || !result.assets[0]) {
+        return;
+      }
+
+      const image = result.assets[0];
+      setScannedImage(image.uri);
+      setScanState('analyzing');
+
+      const formData = new FormData();
       formData.append('image', {
-        uri: source.uri,
-        name: filename,
-        type: getImageMimeType(source),
+        uri: image.uri,
+        type: image.mimeType || 'image/jpeg',
+        name: image.fileName || 'plant-scan.jpg',
       } as unknown as Blob);
+      formData.append('crop_type', 'Lúa');
+
+      console.log('📸 Uploading scan:', { uri: image.uri, type: image.mimeType, name: image.fileName });
 
       const res = await api.post('/plant-scans', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        timeout: 60000,
       });
 
       const nextDiagnosis = normalizeDiagnosis(res.data);
@@ -103,11 +82,10 @@ export default function ScanScreen() {
         throw new Error('Không nhận được dữ liệu chẩn đoán.');
       }
     } catch (err) {
-      console.error(err);
-      const error = err as { response?: { data?: { message?: string } }; message?: string };
-      const errMsg = error.response?.data?.message || error.message || 'Hệ thống quét gặp sự cố.';
-      Alert.alert('Lỗi chẩn đoán', errMsg, [
-        { text: 'Quét lại', onPress: resetToViewfinder }
+      console.error('❌ Scan error:', err);
+      setScanState('viewfinder');
+      Alert.alert('Lỗi chẩn đoán', getErrorMessage(err, 'Hệ thống quét gặp sự cố.'), [
+        { text: 'Chụp lại', onPress: () => setScanState('viewfinder') }
       ]);
     } finally {
       isProcessingRef.current = false;
@@ -273,7 +251,7 @@ export default function ScanScreen() {
             {diagnosis.symptoms && diagnosis.symptoms.length > 0 && (
               <View style={styles.symptomsBox}>
                 <Text style={styles.sectionTitle}>Triệu chứng phát hiện:</Text>
-                {diagnosis.symptoms.map((symptom: string, index: number) => (
+                {diagnosis.symptoms.map((symptom, index) => (
                   <Text key={index} style={styles.symptomItem}>• {symptom}</Text>
                 ))}
               </View>

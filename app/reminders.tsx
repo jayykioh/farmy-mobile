@@ -1,29 +1,67 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
 import { PageHeader } from '../src/components/PageHeader';
-import { Droplets, Clock, Trash2, Repeat, Leaf, BugOff } from 'lucide-react-native';
+import { Droplets, Clock, Plus, Trash2, Repeat, FlaskConical, BugOff } from 'lucide-react-native';
 import { Button } from '../src/components/Button';
 import { useState, useEffect } from 'react';
 import { api } from '../src/api/client';
-import { usePetStatus } from '../src/hooks/usePet';
+import { getErrorMessage } from '../src/utils/errors';
 
-type Reminder = {
+interface ReminderItem {
   _id: string;
   title: string;
   scheduled_at: string;
-  status: string;
-  type?: string;
-  frequency?: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  frequency?: 'none' | 'daily' | 'weekly' | 'monthly';
+  type?: ReminderType;
+}
+
+type ReminderType = 'water' | 'fertilizer' | 'pest';
+type ReminderFrequency = 'none' | 'daily' | 'weekly' | 'monthly';
+
+const reminderTypes: { id: ReminderType; label: string }[] = [
+  { id: 'water', label: 'Tưới nước' },
+  { id: 'fertilizer', label: 'Bón phân' },
+  { id: 'pest', label: 'Trừ sâu' },
+];
+
+const reminderFrequencies: { id: ReminderFrequency; label: string }[] = [
+  { id: 'none', label: 'Không lặp lại' },
+  { id: 'daily', label: 'Hàng ngày' },
+  { id: 'weekly', label: 'Hàng tuần' },
+  { id: 'monthly', label: 'Hàng tháng' },
+];
+
+const getTodayDateInput = () => new Date().toISOString().slice(0, 10);
+
+const getDefaultTimeInput = () => {
+  const nextHour = new Date(Date.now() + 60 * 60 * 1000);
+  return `${String(nextHour.getHours()).padStart(2, '0')}:${String(nextHour.getMinutes()).padStart(2, '0')}`;
+};
+
+const getReminderTypeLabel = (type?: ReminderType) => reminderTypes.find(item => item.id === type)?.label ?? 'Tưới nước';
+
+const getReminderTypeIcon = (type?: ReminderType) => {
+  switch (type) {
+    case 'fertilizer': return <FlaskConical size={24} color="#10B981" />;
+    case 'pest': return <BugOff size={24} color="#F97316" />;
+    default: return <Droplets size={24} color="#3B82F6" />;
+  }
 };
 
 export default function RemindersScreen() {
-  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [reminders, setReminders] = useState<ReminderItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [pendingReminderId, setPendingReminderId] = useState<string | null>(null);
-  const { refetch: refetchPet } = usePetStatus();
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [scheduledDate, setScheduledDate] = useState(getTodayDateInput());
+  const [scheduledTime, setScheduledTime] = useState(getDefaultTimeInput());
+  const [reminderType, setReminderType] = useState<ReminderType>('water');
+  const [frequency, setFrequency] = useState<ReminderFrequency>('daily');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchReminders = async () => {
     try {
@@ -34,15 +72,14 @@ export default function RemindersScreen() {
         setError(null);
       }
     } catch (err) {
-      console.error(err);
-      setError('Không thể tải nhắc nhở. Vui lòng thử lại.');
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể tải nhắc nhở.'));
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchReminders();
+    void Promise.resolve().then(fetchReminders);
   }, []);
 
   const handleComplete = async (id: string) => {
@@ -53,46 +90,66 @@ export default function RemindersScreen() {
         Alert.alert('Thành công', 'Đã hoàn thành nhắc nhở chăm sóc!');
         await Promise.all([fetchReminders(), refetchPet()]);
       }
-    } catch (err: any) {
-      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể cập nhật nhắc nhở.');
-    } finally {
-      setPendingReminderId(null);
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể cập nhật nhắc nhở.'));
     }
   };
 
   const handleCancel = async (id: string) => {
     Alert.alert('Xác nhận', 'Bạn muốn hủy nhắc nhở này?', [
       { text: 'Quay lại', style: 'cancel' },
-      { text: 'Xác nhận hủy', style: 'destructive', onPress: async () => {
-          try {
-            setPendingReminderId(id);
-            await api.patch(`/reminders/${id}/cancel`);
-            Alert.alert('Thành công', 'Đã hủy nhắc nhở.');
-            await fetchReminders();
-          } catch (err: any) {
-            Alert.alert('Lỗi', err.response?.data?.message || 'Không thể hủy nhắc nhở.');
-          } finally {
-            setPendingReminderId(null);
-          }
-        }
+          { text: 'Xác nhận hủy', style: 'destructive', onPress: async () => {
+            try {
+              await api.patch(`/reminders/${id}/cancel`);
+              Alert.alert('Thành công', 'Đã hủy nhắc nhở.');
+              fetchReminders();
+            } catch (err) {
+              Alert.alert('Lỗi', getErrorMessage(err, 'Không thể hủy nhắc nhở.'));
+            }
+          }}
+      ]);
+  };
+
+  const handleCreateReminder = async () => {
+    try {
+      if (!title.trim()) {
+        Alert.alert('Lỗi', 'Vui lòng nhập tiêu đề nhắc nhở.');
+        return;
       }
-    ]);
-  };
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduledDate.trim()) || !/^\d{2}:\d{2}$/.test(scheduledTime.trim())) {
+        Alert.alert('Lỗi', 'Vui lòng nhập ngày giờ hợp lệ theo định dạng YYYY-MM-DD và HH:mm.');
+        return;
+      }
 
-  const getReminderIcon = (type?: string) => {
-    switch (type) {
-      case 'fertilizer': return <Leaf size={24} color="#10B981" />;
-      case 'pest': return <BugOff size={24} color="#F97316" />;
-      default: return <Droplets size={24} color="#3B82F6" />;
-    }
-  };
+      const scheduledAtDate = new Date(`${scheduledDate.trim()}T${scheduledTime.trim()}:00`);
+      if (Number.isNaN(scheduledAtDate.getTime())) {
+        Alert.alert('Lỗi', 'Thời gian nhắc nhở không hợp lệ.');
+        return;
+      }
 
-  const getFrequencyLabel = (frequency?: string) => {
-    switch (frequency) {
-      case 'daily': return 'Hàng ngày';
-      case 'weekly': return 'Hàng tuần';
-      case 'monthly': return 'Hàng tháng';
-      default: return null;
+      setIsSubmitting(true);
+      const res = await api.post('/reminders', {
+        title: title.trim(),
+        description: description.trim(),
+        scheduled_at: scheduledAtDate.toISOString(),
+        type: reminderType,
+        frequency,
+      });
+      if (res.data.success) {
+        Alert.alert('Thành công', 'Đã tạo nhắc nhở mới!');
+        setShowCreateModal(false);
+        setTitle('');
+        setDescription('');
+        setScheduledDate(getTodayDateInput());
+        setScheduledTime(getDefaultTimeInput());
+        setReminderType('water');
+        setFrequency('daily');
+        fetchReminders();
+      }
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể tạo nhắc nhở.'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -139,7 +196,7 @@ export default function RemindersScreen() {
               return (
               <View key={item._id} style={styles.reminderCard}>
                 <View style={styles.iconContainer}>
-                  {getReminderIcon(item.type)}
+                  {getReminderTypeIcon(item.type)}
                 </View>
                 
                 <View style={styles.infoContainer}>
@@ -151,12 +208,15 @@ export default function RemindersScreen() {
                   
                   <View style={styles.tagsRow}>
                     <View style={styles.tagPush}>
+                      <Text style={styles.tagPushText}>{getReminderTypeLabel(item.type)}</Text>
+                    </View>
+                    <View style={styles.tagPush}>
                       <Text style={styles.tagPushText}>{item.status}</Text>
                     </View>
-                    {frequencyLabel && (
+                    {item.frequency && item.frequency !== 'none' && (
                       <View style={styles.tagRepeat}>
                         <Repeat size={10} color="#B45309" />
-                        <Text style={styles.tagRepeatText}>{frequencyLabel}</Text>
+                        <Text style={styles.tagRepeatText}>{item.frequency === 'daily' ? 'Hàng ngày' : item.frequency === 'weekly' ? 'Hàng tuần' : 'Hàng tháng'}</Text>
                       </View>
                     )}
                   </View>
@@ -183,6 +243,44 @@ export default function RemindersScreen() {
 
       </ScrollView>
 
+      {/* FAB: Thêm nhắc nhở tùy chỉnh */}
+      <TouchableOpacity style={styles.fab} activeOpacity={0.8} onPress={() => setShowCreateModal(true)}>
+        <Plus color={colors.bgSurface} size={32} />
+      </TouchableOpacity>
+
+      <Modal visible={showCreateModal} animationType="slide" transparent onRequestClose={() => setShowCreateModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Tạo nhắc nhở</Text>
+            <TextInput style={styles.modalInput} placeholder="Tiêu đề" value={title} onChangeText={setTitle} />
+            <TextInput style={[styles.modalInput, styles.modalMultiline]} placeholder="Mô tả" value={description} onChangeText={setDescription} multiline />
+            <View style={styles.fieldRow}>
+              <TextInput style={[styles.modalInput, styles.fieldInput]} placeholder="YYYY-MM-DD" value={scheduledDate} onChangeText={setScheduledDate} />
+              <TextInput style={[styles.modalInput, styles.fieldInput]} placeholder="HH:mm" value={scheduledTime} onChangeText={setScheduledTime} />
+            </View>
+            <Text style={styles.fieldLabel}>Phân loại</Text>
+            <View style={styles.frequencyRow}>
+              {reminderTypes.map(item => (
+                <TouchableOpacity key={item.id} style={[styles.frequencyChip, reminderType === item.id && styles.frequencyChipActive]} onPress={() => setReminderType(item.id)} disabled={isSubmitting}>
+                  <Text style={[styles.frequencyText, reminderType === item.id && styles.frequencyTextActive]}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.fieldLabel}>Tần suất</Text>
+            <View style={styles.frequencyRow}>
+              {reminderFrequencies.map(item => (
+                <TouchableOpacity key={item.id} style={[styles.frequencyChip, frequency === item.id && styles.frequencyChipActive]} onPress={() => setFrequency(item.id)} disabled={isSubmitting}>
+                  <Text style={[styles.frequencyText, frequency === item.id && styles.frequencyTextActive]}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.modalActions}>
+              <Button title="Hủy" variant="outline" onPress={() => setShowCreateModal(false)} disabled={isSubmitting} style={styles.modalButton} />
+              <Button title="Tạo" onPress={handleCreateReminder} isLoading={isSubmitting} disabled={isSubmitting} style={styles.modalButton} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -351,4 +449,98 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.error + 'B0',
   },
+  fab: {
+    position: 'absolute',
+    bottom: 32,
+    right: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: colors.bgSurface,
+    borderRadius: 24,
+    padding: 20,
+    gap: 12,
+  },
+  modalTitle: {
+    ...typography.h3,
+    marginBottom: 4,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: colors.borderMain + '50',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: colors.bgMain,
+    ...typography.body,
+  },
+  modalMultiline: {
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+  frequencyRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  frequencyChip: {
+    flex: 1,
+    minWidth: 96,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '50',
+    borderRadius: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: colors.bgMain,
+  },
+  frequencyChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+  },
+  frequencyText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textMain,
+  },
+  frequencyTextActive: {
+    color: colors.primary,
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  fieldInput: {
+    flex: 1,
+  },
+  fieldLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  modalButton: {
+    flex: 1,
+  }
 });

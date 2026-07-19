@@ -27,6 +27,10 @@
       "expo-status-bar",
       "expo-web-browser",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Farmy cần truy cập thư viện ảnh để tải ảnh cây trồng.",
+          "cameraPermission": "Farmy cần truy cập camera để chụp ảnh cây trồng chẩn đoán.",
         "expo-camera",
         {
           "cameraPermission": "Ứng dụng cần quyền sử dụng máy ảnh để quét sâu bệnh trên cây trồng.",

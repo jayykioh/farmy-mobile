@@ -7,6 +7,7 @@ import { Archive, Trash2, Activity, Clock, CheckCircle2, Droplets, Leaf, Shield,
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useDiaryDetail, useDiaryLogs } from '../../src/hooks/useDiary';
 import { api } from '../../src/api/client';
+import { getErrorMessage } from '../../src/utils/errors';
 
 export default function DiaryHistoryScreen() {
   const { id } = useLocalSearchParams();
@@ -36,6 +37,30 @@ export default function DiaryHistoryScreen() {
     count: logs.filter(log => new Date(log.created_at).getDay() === day.dayIndex).length,
   }));
   const maxWeeklyCount = Math.max(...weeklyCounts.map(day => day.count), 1);
+
+  const normalizeActivityType = (type?: string) => {
+    const normalized = type?.toLowerCase?.() ?? '';
+    if (normalized.includes('water') || normalized.includes('tưới')) return 'water';
+    if (normalized.includes('fertilizer') || normalized.includes('bón')) return 'fertilizer';
+    if (normalized.includes('pest') || normalized.includes('phun') || normalized.includes('sâu')) return 'pest';
+    return 'other';
+  };
+
+  const getActivityLabel = (type: string) => {
+    switch(type) {
+      case 'water': return 'Tưới nước';
+      case 'fertilizer': return 'Bón phân';
+      case 'pest': return 'Phun thuốc';
+      default: return 'Hoạt động khác';
+    }
+  };
+
+  const getLogImageUrls = (log: typeof logs[number]) => [
+    log.image_url,
+    log.imageUrl,
+    ...(log.photo_urls ?? []),
+    ...(log.photoUrls ?? []),
+  ].filter((url): url is string => Boolean(url));
 
   const getIcon = (type: string) => {
     switch(type) {
@@ -75,8 +100,8 @@ export default function DiaryHistoryScreen() {
       Alert.alert('Thành công', 'Đã lưu trữ vụ mùa.', [
         { text: 'OK', onPress: () => router.replace('/(tabs)/diary') }
       ]);
-    } catch (err: any) {
-      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể lưu trữ vụ mùa.');
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể lưu trữ vụ mùa.'));
     }
   };
 
@@ -89,8 +114,8 @@ export default function DiaryHistoryScreen() {
             Alert.alert('Thành công', 'Đã xóa vụ mùa.', [
               { text: 'OK', onPress: () => router.replace('/(tabs)/diary') }
             ]);
-          } catch (err: any) {
-            Alert.alert('Lỗi', err.response?.data?.message || 'Không thể xóa vụ mùa.');
+          } catch (err) {
+            Alert.alert('Lỗi', getErrorMessage(err, 'Không thể xóa vụ mùa.'));
           }
         }
       }
@@ -208,15 +233,22 @@ export default function DiaryHistoryScreen() {
 
           {!logsLoading && sortedLogs.map(log => (
             <View key={log._id} style={styles.logCard}>
-              <View style={[styles.logIcon, { backgroundColor: getBgColor(log.activity_type) }]}>
-                {getIcon(log.activity_type)}
+              <View style={[styles.logIcon, { backgroundColor: getBgColor(normalizeActivityType(log.activity_type ?? log.activityType)) }]}>                
+                {getIcon(normalizeActivityType(log.activity_type ?? log.activityType))}
               </View>
-              
+               
               <View style={styles.logInfo}>
                 <Text style={styles.logType}>
-                  {getActivityLabel(log.activity_type)}
+                  {getActivityLabel(normalizeActivityType(log.activity_type ?? log.activityType))}
                 </Text>
                 <Text style={styles.logContent}>{log.content}</Text>
+                {getLogImageUrls(log).length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.logImagesRow}>
+                    {getLogImageUrls(log).map(url => (
+                      <Image key={url} source={{ uri: url }} style={styles.logImage} />
+                    ))}
+                  </ScrollView>
+                )}
               </View>
 
               <View style={styles.logMeta}>
@@ -477,6 +509,18 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMain + 'CC',
     marginTop: 2,
+  },
+  logImagesRow: {
+    gap: 8,
+    paddingTop: 10,
+  },
+  logImage: {
+    width: 88,
+    height: 88,
+    borderRadius: 14,
+    backgroundColor: colors.bgSurface1,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '40',
   },
   logMeta: {
     alignItems: 'flex-end',

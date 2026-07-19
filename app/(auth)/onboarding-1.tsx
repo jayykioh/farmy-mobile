@@ -25,8 +25,7 @@ export default function OnboardingStep1() {
       await AsyncStorage.setItem('onboarding_farmName', farmName || 'Vườn Nhà Bé Thóc');
       await AsyncStorage.setItem('onboarding_selectedCrop', selectedCrop);
       router.push('/(auth)/onboarding-2');
-    } catch (error) {
-      console.error(error);
+    } catch {
       Alert.alert('Lỗi', 'Không thể lưu thông tin cấu hình.');
     }
   };
