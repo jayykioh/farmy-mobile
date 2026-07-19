@@ -25,7 +25,21 @@
     "plugins": [
       "expo-router",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Ứng dụng cần quyền sử dụng máy ảnh để quét sâu bệnh trên cây trồng.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Ứng dụng cần quyền truy cập thư viện ảnh để tải ảnh cây trồng lên PlantScan.",
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }
