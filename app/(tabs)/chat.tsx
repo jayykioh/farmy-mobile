@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
 import { PageHeader } from '../../src/components/PageHeader';
-import { Camera, Send, ThumbsUp, ThumbsDown, Sprout } from 'lucide-react-native';
+import { Camera, Send, Sprout } from 'lucide-react-native';
 import { useChat } from '../../src/hooks/useChat';
 import { useState, useRef } from 'react';
 import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
@@ -249,36 +249,6 @@ const styles = StyleSheet.create({
     color: colors.bgSurface,
   },
   textContentAssistant: {
-    color: colors.textMain,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    marginTop: 12,
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 44,
-    minHeight: 44,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: colors.bgSurface,
-    borderWidth: 1,
-    borderColor: colors.borderMain + '50',
-    borderRadius: 16,
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  actionBtnText: {
-    ...typography.caption,
-    fontWeight: '700',
     color: colors.textMain,
   },
   inputBar: {

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -24,6 +24,9 @@ export default function ProfileInfoScreen() {
       default: return role || 'Nông dân';
     }
   };
+
+  const displayName = user?.name || 'Nông dân Farmy';
+  const avatarInitial = displayName.trim().charAt(0).toUpperCase() || 'F';
 
   const infoItems = [
     {
@@ -57,8 +60,18 @@ export default function ProfileInfoScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <PageHeader title="Thông tin cá nhân" showBack={true} fallbackHref="/(tabs)/profile" />
+      {isLoading ? (
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.centerStateText}>Đang tải hồ sơ...</Text>
+        </View>
+      ) : !user ? (
+        <View style={styles.centerState}>
+          <Text style={styles.centerStateText}>Bạn cần đăng nhập để xem thông tin cá nhân.</Text>
+        </View>
+      ) : (
       
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* Avatar Section */}
         <View style={styles.avatarSection}>
@@ -100,7 +113,8 @@ export default function ProfileInfoScreen() {
           ))}
         </View>
 
-      </ScrollView>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -113,6 +127,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 24,
     paddingBottom: 40,
+  },
+  centerState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  centerStateText: {
+    ...typography.body,
+    color: colors.textMain + 'B0',
+    textAlign: 'center',
+    fontWeight: '700',
   },
   avatarSection: {
     alignItems: 'center',

@@ -5,8 +5,8 @@ import { colors } from '../../src/theme/colors';
 import { PageHeader } from '../../src/components/PageHeader';
 import { ChevronDown, Camera, Droplets, FlaskConical, BugOff, Save, X } from 'lucide-react-native';
 import { Button } from '../../src/components/Button';
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { goBackOrReplace } from '../../src/utils/navigation';
 import { useDiaries } from '../../src/hooks/useDiary';
 import { api } from '../../src/api/client';
@@ -16,9 +16,11 @@ import { getErrorMessage } from '../../src/utils/errors';
 
 export default function CreateDiaryScreen() {
   const router = useRouter();
+  const { diaryId } = useLocalSearchParams();
   const { data: diaries = [], isLoading } = useDiaries();
   
-  const [selectedDiaryIndex, setSelectedDiaryIndex] = useState(0);
+  const initialDiaryId = Array.isArray(diaryId) ? diaryId[0] : diaryId;
+  const [selectedDiaryId, setSelectedDiaryId] = useState<string | null>(initialDiaryId || null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [stage, setStage] = useState('');
   const [content, setContent] = useState('');
@@ -45,9 +47,8 @@ export default function CreateDiaryScreen() {
       setIsUploading(true);
       try {
         const formData = new FormData();
-        const filename = selectedImage.uri.split('/').pop() || 'photo.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : `image/jpeg`;
+        const filename = selectedImage.fileName || selectedImage.uri.split('/').pop()?.split('?')[0] || 'photo.jpg';
+        const type = selectedImage.mimeType || 'image/jpeg';
 
         formData.append('file', {
           uri: selectedImage.uri,
@@ -80,9 +81,25 @@ export default function CreateDiaryScreen() {
     { id: 'pest', label: 'Phun thuốc', icon: BugOff },
   ];
 
-  const selectedDiary = diaries[selectedDiaryIndex];
+  const activeDiaries = diaries
+    .filter(diary => diary.status === 'active')
+    .sort((a, b) => new Date(b.start_date || 0).getTime() - new Date(a.start_date || 0).getTime());
+  const selectedDiary = activeDiaries.find(diary => diary._id === selectedDiaryId) || null;
+  const isSaveDisabled = isSubmitting || isUploading || isLoading || !selectedDiary;
+
+  useEffect(() => {
+    if (isLoading || activeDiaries.length === 0) return;
+    if (selectedDiaryId && activeDiaries.some(diary => diary._id === selectedDiaryId)) return;
+
+    setSelectedDiaryId(activeDiaries[0]._id);
+  }, [activeDiaries, isLoading, selectedDiaryId]);
 
   const handleSave = async () => {
+    if (isUploading) {
+      Alert.alert('Đang tải ảnh', 'Vui lòng đợi ảnh tải lên xong trước khi lưu nhật ký.');
+      return;
+    }
+
     if (!selectedDiary) {
       Alert.alert('Lỗi', 'Vui lòng chọn một vụ mùa trước.');
       return;
@@ -148,7 +165,7 @@ export default function CreateDiaryScreen() {
               <Text style={styles.label}>Chọn vụ mùa</Text>
               {isLoading ? (
                 <ActivityIndicator size="small" color={colors.primary} />
-              ) : diaries.length === 0 ? (
+              ) : activeDiaries.length === 0 ? (
                 <Text style={styles.emptyText}>Chưa có vụ mùa nào đang canh tác.</Text>
               ) : (
                 <>
@@ -157,23 +174,23 @@ export default function CreateDiaryScreen() {
                     onPress={() => setShowDropdown(!showDropdown)}
                   >
                     <Text style={styles.selectText}>
-                      {selectedDiary ? selectedDiary.crop_type : 'Chọn vụ mùa'}
+                      {selectedDiary ? `${selectedDiary.crop_type}${selectedDiary.season ? ` (${selectedDiary.season})` : ''}` : 'Chọn vụ mùa'}
                     </Text>
                     <ChevronDown size={20} color={colors.textMain + '80'} />
                   </TouchableOpacity>
 
                   {showDropdown && (
                     <View style={styles.dropdown}>
-                      {diaries.map((diary, idx) => (
+                      {activeDiaries.map((diary) => (
                         <TouchableOpacity 
                           key={diary._id}
                           style={styles.dropdownItem}
                           onPress={() => {
-                            setSelectedDiaryIndex(idx);
+                            setSelectedDiaryId(diary._id);
                             setShowDropdown(false);
                           }}
                         >
-                          <Text style={styles.dropdownItemText}>{diary.crop_type}</Text>
+                          <Text style={styles.dropdownItemText}>{diary.crop_type}{diary.season ? ` (${diary.season})` : ''}</Text>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -275,13 +292,13 @@ export default function CreateDiaryScreen() {
 
         <View style={styles.footer}>
           <Button 
-            title={isSubmitting ? "Đang lưu..." : "Lưu nhật ký"} 
+            title={isUploading ? "Đang tải ảnh..." : isSubmitting ? "Đang lưu..." : "Lưu nhật ký"} 
             onPress={handleSave} 
-            disabled={isSubmitting}
+            disabled={isSaveDisabled}
             icon={isSubmitting ? <ActivityIndicator size="small" color="#fff" /> : <Save size={20} color="#fff" style={{ marginRight: 8 }} />}
             style={{ marginBottom: 12 }}
           />
-          <TouchableOpacity style={styles.cancelBtn} onPress={() => goBackOrReplace(router, '/(tabs)/diary')} disabled={isSubmitting}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={() => goBackOrReplace(router, '/(tabs)/diary')} disabled={isSubmitting || isUploading}>
             <Text style={styles.cancelText}>Hủy bỏ</Text>
           </TouchableOpacity>
         </View>

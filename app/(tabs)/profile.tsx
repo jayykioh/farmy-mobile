@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -12,7 +12,7 @@ import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
 
 export default function ProfileScreen() {
   const { logout, user } = useAuthStore();
-  const { data: petStatus } = usePetStatus();
+  const { data: petStatus, isLoading: isPetLoading, error: petError } = usePetStatus();
   const router = useRouter();
   const { gutter, contentMaxWidth, isCompact } = useResponsiveLayout();
 
@@ -32,6 +32,9 @@ export default function ProfileScreen() {
     .slice(0, 2)
     .toUpperCase();
   const badgeLabel = level >= 10 ? 'Chuyên Gia' : level >= 5 ? 'Nhà Vườn' : 'Tân Binh';
+  const displayName = user?.name || 'Nông dân Farmy';
+  const avatarInitial = displayName.trim().charAt(0).toUpperCase() || 'F';
+  const roleLabel = user?.role?.toLowerCase() === 'admin' ? 'Quản trị viên' : 'Nông dân';
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
@@ -49,7 +52,7 @@ export default function ProfileScreen() {
             </View>
           )}
           <View style={styles.profileInfo}>
-            <Text style={styles.name}>{user?.name || 'Nông dân Ẩn danh'}</Text>
+            <Text style={styles.name}>{displayName}</Text>
             <View style={styles.locationRow}>
               <MapPin size={14} color={colors.textMuted} />
               <Text style={styles.locationText}>{user?.location || 'Chưa thiết lập vị trí'}</Text>
@@ -73,10 +76,25 @@ export default function ProfileScreen() {
               <Text style={styles.xpAmount}>{xp} XP</Text>
               <Text style={styles.xpTarget}>/ {maxXp} XP lên cấp {level + 1}</Text>
             </View>
-          </View>
-          <View style={styles.progressBar} accessible accessibilityRole="progressbar" accessibilityLabel="Tiến độ cấp độ" accessibilityValue={{ min: 0, max: maxXp, now: xp }}>
-            <View style={[styles.progressFill, { width: `${progress}%` }]} />
-          </View>
+          ) : petError ? (
+            <Text style={styles.xpStateText}>Chưa thể tải XP. Kéo xuống hoặc mở lại hồ sơ để thử lại.</Text>
+          ) : (
+            <>
+              <View style={[styles.xpHeader, isCompact && styles.xpHeaderCompact]}>
+                <View>
+                  <Text style={styles.levelTitle}>Cấp độ {level}</Text>
+                  <Text style={styles.levelSubtitle}>Hành trình chăm cây</Text>
+                </View>
+                <View style={[styles.xpRight, isCompact && styles.xpRightCompact]}>
+                  <Text style={styles.xpAmount}>{xp} XP</Text>
+                  <Text style={styles.xpTarget}>/ {maxXp} XP lên cấp {level + 1}</Text>
+                </View>
+              </View>
+              <View style={styles.progressBar} accessible accessibilityRole="progressbar" accessibilityLabel="Tiến độ cấp độ" accessibilityValue={{ min: 0, max: maxXp, now: xp }}>
+                <View style={[styles.progressFill, { width: `${progress}%` }]} />
+              </View>
+            </>
+          )}
         </View>
 
         {/* Badge collection */}
@@ -111,7 +129,7 @@ export default function ProfileScreen() {
 
         {/* Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
+          <Text style={styles.sectionTitle}>Tài khoản</Text>
           <View style={styles.settingsList}>
             <TouchableOpacity 
               style={styles.settingItem}
@@ -143,8 +161,7 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.settingText}>Trợ giúp & hỗ trợ</Text>
               </View>
-              <ChevronRight size={20} color={colors.borderMain} />
-            </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -268,6 +285,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
+  xpStateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  xpStateText: {
+    ...typography.bodySmall,
+    fontWeight: '700',
+    color: colors.textMain + 'B0',
+  },
   xpHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -387,6 +414,9 @@ const styles = StyleSheet.create({
   settingItemLast: {
     borderBottomWidth: 0,
   },
+  settingItemDisabled: {
+    opacity: 0.72,
+  },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -403,5 +433,10 @@ const styles = StyleSheet.create({
   settingText: {
     ...typography.body,
     fontWeight: '700',
+  },
+  settingHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: 2,
   }
 });

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -12,9 +12,31 @@ import { getErrorMessage } from '../../src/utils/errors';
 export default function DiaryHistoryScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const diaryId = Array.isArray(id) ? id[0] : id;
   
-  const { data: diary, isLoading: diaryLoading, refetch: refetchDiary } = useDiaryDetail(id as string);
-  const { data: logs, isLoading: logsLoading, refetch: refetchLogs } = useDiaryLogs(id as string);
+  const { data: diary, isLoading: diaryLoading, refetch: refetchDiary } = useDiaryDetail(diaryId || '');
+  const { data: logs = [], isLoading: logsLoading, refetch: refetchLogs } = useDiaryLogs(diaryId || '');
+
+  const sortedLogs = [...logs].sort((a, b) => {
+    const left = new Date(a.created_at || 0).getTime();
+    const right = new Date(b.created_at || 0).getTime();
+    return right - left;
+  });
+
+  const weekDays = [
+    { label: 'T2', dayIndex: 1 },
+    { label: 'T3', dayIndex: 2 },
+    { label: 'T4', dayIndex: 3 },
+    { label: 'T5', dayIndex: 4 },
+    { label: 'T6', dayIndex: 5 },
+    { label: 'T7', dayIndex: 6 },
+    { label: 'CN', dayIndex: 0 },
+  ];
+  const weeklyCounts = weekDays.map(day => ({
+    ...day,
+    count: logs.filter(log => new Date(log.created_at).getDay() === day.dayIndex).length,
+  }));
+  const maxWeeklyCount = Math.max(...weeklyCounts.map(day => day.count), 1);
 
   const normalizeActivityType = (type?: string) => {
     const normalized = type?.toLowerCase?.() ?? '';
@@ -58,6 +80,15 @@ export default function DiaryHistoryScreen() {
     }
   };
 
+  const getActivityLabel = (type: string) => {
+    switch(type) {
+      case 'water': return 'Tưới nước';
+      case 'fertilizer': return 'Bón phân';
+      case 'pest': return 'Phun thuốc';
+      default: return 'Hoạt động khác';
+    }
+  };
+
   const handleRefresh = () => {
     refetchDiary();
     refetchLogs();
@@ -65,7 +96,7 @@ export default function DiaryHistoryScreen() {
 
   const handleArchive = async () => {
     try {
-      await api.put(`/diaries/${id}`, { status: 'archived' });
+      await api.put(`/diaries/${diaryId}`, { status: 'archived' });
       Alert.alert('Thành công', 'Đã lưu trữ vụ mùa.', [
         { text: 'OK', onPress: () => router.replace('/(tabs)/diary') }
       ]);
@@ -79,7 +110,7 @@ export default function DiaryHistoryScreen() {
       { text: 'Hủy', style: 'cancel' },
       { text: 'Xóa', style: 'destructive', onPress: async () => {
           try {
-            await api.delete(`/diaries/${id}`);
+            await api.delete(`/diaries/${diaryId}`);
             Alert.alert('Thành công', 'Đã xóa vụ mùa.', [
               { text: 'OK', onPress: () => router.replace('/(tabs)/diary') }
             ]);
@@ -95,6 +126,21 @@ export default function DiaryHistoryScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['left', 'right']}>
         <PageHeader title="Đang tải..." fallbackHref="/(tabs)/diary" />
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.centerStateText}>Đang tải lịch sử mùa vụ...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!diary) {
+    return (
+      <SafeAreaView style={styles.container} edges={['left', 'right']}>
+        <PageHeader title="Không tìm thấy" fallbackHref="/(tabs)/diary" />
+        <View style={styles.centerState}>
+          <Text style={styles.centerStateText}>Không tìm thấy mùa vụ này hoặc dữ liệu chưa sẵn sàng.</Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -142,12 +188,12 @@ export default function DiaryHistoryScreen() {
             </View>
             
             <View style={styles.chartArea}>
-              {['T2','T3','T4','T5','T6','T7','CN'].map((day, idx) => (
-                <View key={day} style={styles.chartCol}>
+              {weeklyCounts.map(day => (
+                <View key={day.label} style={styles.chartCol}>
                   <View style={styles.chartBarBg}>
-                    <View style={[styles.chartBarFill, { height: `${30 + idx * 10}%` }]} />
+                    <View style={[styles.chartBarFill, { height: `${Math.max(8, (day.count / maxWeeklyCount) * 100)}%` }]} />
                   </View>
-                  <Text style={styles.chartDay}>{day}</Text>
+                  <Text style={styles.chartDay}>{day.label}</Text>
                 </View>
               ))}
             </View>
@@ -163,7 +209,7 @@ export default function DiaryHistoryScreen() {
             <View style={styles.statCardSmall}>
               <Activity size={24} color={colors.secondary} style={{ marginBottom: 4 }} />
               <Text style={styles.statLabel}>Tổng hoạt động</Text>
-              <Text style={styles.statValue}>{logs?.length || 0}</Text>
+              <Text style={styles.statValue}>{logs.length}</Text>
             </View>
             <View style={styles.statCardSmall}>
               <CheckCircle2 size={24} color="#10B981" style={{ marginBottom: 4 }} />
@@ -178,7 +224,14 @@ export default function DiaryHistoryScreen() {
         {/* Activity Logs */}
         <Text style={styles.sectionTitle}>Hoạt động chăm sóc</Text>
         <View style={styles.logsContainer}>
-          {logs?.map(log => (
+          {logsLoading && (
+            <View style={styles.logsLoadingState}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.emptyLogText}>Đang tải hoạt động...</Text>
+            </View>
+          )}
+
+          {!logsLoading && sortedLogs.map(log => (
             <View key={log._id} style={styles.logCard}>
               <View style={[styles.logIcon, { backgroundColor: getBgColor(normalizeActivityType(log.activity_type ?? log.activityType)) }]}>                
                 {getIcon(normalizeActivityType(log.activity_type ?? log.activityType))}
@@ -206,8 +259,8 @@ export default function DiaryHistoryScreen() {
               </View>
             </View>
           ))}
-          {logs?.length === 0 && (
-            <Text style={{ textAlign: 'center', marginTop: 20, color: colors.textMuted }}>Chưa có hoạt động nào</Text>
+          {!logsLoading && logs.length === 0 && (
+            <Text style={styles.emptyLogText}>Chưa có hoạt động nào</Text>
           )}
         </View>
 
@@ -217,7 +270,7 @@ export default function DiaryHistoryScreen() {
       <TouchableOpacity 
         style={styles.fab} 
         activeOpacity={0.8} 
-        onPress={() => router.push('/diary/create')}
+        onPress={() => router.push({ pathname: '/diary/create', params: { diaryId } })}
       >
         <Plus color={colors.bgSurface} size={32} />
       </TouchableOpacity>
@@ -233,6 +286,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingBottom: 100,
+  },
+  centerState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  centerStateText: {
+    ...typography.body,
+    color: colors.textMain + 'B0',
+    textAlign: 'center',
+    fontWeight: '700',
   },
   topActions: {
     flexDirection: 'row',
@@ -402,6 +468,18 @@ const styles = StyleSheet.create({
   },
   logsContainer: {
     gap: 12,
+  },
+  logsLoadingState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  emptyLogText: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: colors.textMuted,
+    fontWeight: '700',
   },
   logCard: {
     backgroundColor: colors.bgSurface,

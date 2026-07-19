@@ -10,6 +10,8 @@ export interface User {
   name: string;
   role: string;
   farmId?: string;
+  avatarUrl?: string;
+  location?: string;
   onboardingCompleted?: boolean;
   avatarUrl?: string;
   location?: string;
@@ -27,6 +29,14 @@ interface RegisterPayload {
   role?: string;
 }
 
+type RawUser = Partial<User> & {
+  _id?: string;
+  farm_id?: string;
+  avatar_url?: string;
+  picture?: string;
+  onboarding_completed?: boolean;
+};
+
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -37,6 +47,19 @@ interface AuthState {
   login: (payload: LoginPayload) => Promise<void>;
   registerUser: (payload: RegisterPayload) => Promise<void>;
 }
+
+const normalizeUser = (rawUser: RawUser): User => ({
+  ...rawUser,
+  id: rawUser?.id ?? rawUser?._id ?? '',
+  email: rawUser?.email ?? '',
+  name: rawUser?.name ?? '',
+  role: rawUser?.role ?? 'farmer',
+  farmId: rawUser?.farmId ?? rawUser?.farm_id,
+  avatarUrl: rawUser?.avatarUrl ?? rawUser?.avatar_url ?? rawUser?.picture,
+  onboardingCompleted: rawUser?.onboardingCompleted ?? rawUser?.onboarding_completed,
+});
+
+const getAccessToken = (data: { access_token?: string; accessToken?: string }): string | undefined => data.access_token ?? data.accessToken;
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
@@ -53,8 +76,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
       
       const response = await api.get('/auth/me');
+      const rawUser = response.data.data?.user ?? response.data.data;
       set({
-        user: response.data.data,
+        user: normalizeUser(rawUser),
         isAuthenticated: true,
         isLoading: false,
       });
@@ -66,7 +90,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setSession: async (user: User, accessToken: string) => {
     await AsyncStorage.setItem('access_token', accessToken);
-    set({ user, isAuthenticated: true, isLoading: false });
+    set({ user: normalizeUser(user), isAuthenticated: true, isLoading: false });
   },
 
   login: async (payload) => {
@@ -101,7 +125,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
     } finally {
       await AsyncStorage.removeItem('access_token');
-      set({ user: null, isAuthenticated: false });
+      set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },
 }));

@@ -36,7 +36,7 @@ export default function HomeScreen() {
           </View>
           <View style={styles.streakBadge}>
             <Flame size={16} color={colors.warning} />
-            <Text style={styles.streakText}>3 ngày</Text>
+            <Text style={styles.streakText}>Đang cập nhật</Text>
           </View>
         </View>
 
@@ -111,8 +111,8 @@ export default function HomeScreen() {
           <View style={styles.weatherLeft}>
             <Sprout size={32} color={colors.primary} />
             <View>
-              <Text style={styles.tempText}>Mẹo hôm nay</Text>
-              <Text style={styles.weatherDesc}>Kiểm tra mặt dưới lá và ghi lại dấu hiệu bất thường vào nhật ký.</Text>
+              <Text style={styles.tempText}>--°C</Text>
+              <Text style={styles.weatherDesc}>Dữ liệu thời tiết sẽ được đồng bộ theo nông trại của bạn.</Text>
             </View>
           </View>
           <View style={styles.weatherDetails}>

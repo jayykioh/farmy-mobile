@@ -69,6 +69,7 @@ export default function RemindersScreen() {
       const res = await api.get('/reminders');
       if (res.data.success) {
         setReminders(res.data.data);
+        setError(null);
       }
     } catch (err) {
       Alert.alert('Lỗi', getErrorMessage(err, 'Không thể tải nhắc nhở.'));
@@ -83,10 +84,11 @@ export default function RemindersScreen() {
 
   const handleComplete = async (id: string) => {
     try {
+      setPendingReminderId(id);
       const res = await api.patch(`/reminders/${id}/complete`);
       if (res.data.success) {
         Alert.alert('Thành công', 'Đã hoàn thành nhắc nhở chăm sóc!');
-        fetchReminders();
+        await Promise.all([fetchReminders(), refetchPet()]);
       }
     } catch (err) {
       Alert.alert('Lỗi', getErrorMessage(err, 'Không thể cập nhật nhắc nhở.'));
@@ -151,6 +153,10 @@ export default function RemindersScreen() {
     }
   };
 
+  const upcomingReminders = reminders
+    .filter(item => item.status === 'pending' && new Date(item.scheduled_at).getTime() >= Date.now())
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <PageHeader title="Nhắc nhở của tôi" />
@@ -175,11 +181,19 @@ export default function RemindersScreen() {
 
         {isLoading ? (
           <ActivityIndicator size="large" color={colors.primary} />
-        ) : reminders.length === 0 ? (
+        ) : error ? (
+          <View style={styles.errorState}>
+            <Text style={styles.errorText}>{error}</Text>
+            <Button title="Thử lại" onPress={fetchReminders} style={styles.retryBtn} />
+          </View>
+        ) : upcomingReminders.length === 0 ? (
           <Text style={{ textAlign: 'center', marginTop: 24, color: colors.textMuted }}>Không có nhắc nhở nào sắp tới.</Text>
         ) : (
           <View style={styles.listContainer}>
-            {reminders.map(item => (
+            {upcomingReminders.map(item => {
+              const frequencyLabel = getFrequencyLabel(item.frequency);
+              const isPending = pendingReminderId === item._id;
+              return (
               <View key={item._id} style={styles.reminderCard}>
                 <View style={styles.iconContainer}>
                   {getReminderTypeIcon(item.type)}
@@ -214,15 +228,16 @@ export default function RemindersScreen() {
                       title="Xong" 
                       onPress={() => handleComplete(item._id)} 
                       style={styles.doneBtn}
+                      disabled={!!pendingReminderId}
                     />
-                    <TouchableOpacity style={styles.cancelBtn} onPress={() => handleCancel(item._id)}>
+                    <TouchableOpacity style={styles.cancelBtn} onPress={() => handleCancel(item._id)} disabled={!!pendingReminderId}>
                       <Trash2 size={12} color={colors.error} />
-                      <Text style={styles.cancelText}>Hủy</Text>
+                      <Text style={styles.cancelText}>{isPending ? 'Đang xử lý' : 'Hủy'}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
               </View>
-            ))}
+            )})}
           </View>
         )}
 
@@ -320,6 +335,20 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     gap: 12,
+  },
+  errorState: {
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 24,
+  },
+  errorText: {
+    ...typography.bodySmall,
+    color: colors.error,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  retryBtn: {
+    width: 140,
   },
   reminderCard: {
     backgroundColor: colors.bgSurface,

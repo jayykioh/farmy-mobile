@@ -20,6 +20,17 @@ interface ShopItem {
   img?: string;
 }
 
+type ShopItem = {
+  _id: string;
+  name: string;
+  category: string;
+  price?: number;
+  requiredLevel?: number;
+  img?: string;
+  owned?: boolean;
+  equipped?: boolean;
+};
+
 export default function ShopScreen() {
   const categories = [
     { id: 'HAT', label: 'Mũ' },
@@ -31,6 +42,8 @@ export default function ShopScreen() {
   const [activeCategory, setActiveCategory] = useState('HAT');
   const [items, setItems] = useState<ShopItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
+  const [itemsError, setItemsError] = useState<string | null>(null);
+  const [pendingItemId, setPendingItemId] = useState<string | null>(null);
   
   const { data: petStatus, refetch: refetchPet } = usePetStatus();
   
@@ -43,6 +56,7 @@ export default function ShopScreen() {
       const res = await api.get('/shop/items');
       if (res.data.success) {
         setItems(res.data.data);
+        setItemsError(null);
       }
     } catch (err) {
       Alert.alert('Lỗi', getErrorMessage(err, 'Không thể tải cửa hàng.'));
@@ -61,10 +75,11 @@ export default function ShopScreen() {
 
   const handleBuy = async (itemId: string) => {
     try {
+      setPendingItemId(itemId);
       const res = await api.post('/shop/buy', { itemId });
       if (res.data.success) {
         Alert.alert('Thành công', 'Mua phụ kiện thành công');
-        handleRefresh();
+        await handleRefresh();
       }
     } catch (err) {
       Alert.alert('Lỗi', getErrorMessage(err, 'Không thể mua vật phẩm.'));
@@ -73,23 +88,34 @@ export default function ShopScreen() {
 
   const handleEquip = async (itemId: string) => {
     try {
+      setPendingItemId(itemId);
       const res = await api.post('/shop/equip', { itemId });
       if (res.data.success) {
         Alert.alert('Thành công', 'Thay đổi trang bị thành công');
-        handleRefresh();
+        await handleRefresh();
       }
     } catch (err) {
       Alert.alert('Lỗi', getErrorMessage(err, 'Không thể trang bị vật phẩm.'));
     }
   };
 
-  const filteredItems = items.filter(item => item.category === activeCategory);
-  const equippedItem = items.find(item => item.equipped);
+  const normalizedItems = items.map(item => ({
+    ...item,
+    price: item.price ?? 0,
+    requiredLevel: item.requiredLevel ?? 1,
+    owned: item.owned || petStatus?.ownedItems?.includes(item._id),
+    equipped: item.equipped || petStatus?.equippedItems?.includes(item._id),
+  }));
+  const filteredItems = normalizedItems
+    .filter(item => item.category === activeCategory)
+    .sort((a, b) => (a.requiredLevel || 1) - (b.requiredLevel || 1) || (a.price || 0) - (b.price || 0) || a.name.localeCompare(b.name));
+  const equippedItem = normalizedItems.find(item => item.equipped);
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
       <PageHeader 
         title="Cửa hàng" 
+        fallbackHref="/(tabs)/profile"
         rightElement={
           <View style={styles.xpBadge}>
             <View style={styles.levelPill}>
@@ -140,13 +166,21 @@ export default function ShopScreen() {
         {/* Items Grid */}
         {isLoadingItems ? (
           <ActivityIndicator size="large" color={colors.primary} />
+        ) : itemsError ? (
+          <View style={styles.errorState}>
+            <Text style={styles.errorText}>{itemsError}</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.btnBuy, styles.retryBtn]} onPress={fetchItems}>
+              <Text style={styles.btnTextBuy}>Thử lại</Text>
+            </TouchableOpacity>
+          </View>
         ) : filteredItems.length === 0 ? (
           <Text style={{ textAlign: 'center', marginTop: 24, color: colors.textMuted }}>Không có phụ phẩm nào thuộc mục này.</Text>
         ) : (
           <View style={styles.gridContainer}>
             {filteredItems.map(item => {
-              const isLocked = level < item.requiredLevel;
-              const canAfford = xp >= item.price;
+              const isLocked = level < (item.requiredLevel || 1);
+              const canAfford = xp >= (item.price || 0);
+              const isPending = pendingItemId === item._id;
 
               return (
                 <View key={item._id} style={[styles.itemCard, item.equipped ? styles.itemCardEquipped : null]}>
@@ -160,7 +194,7 @@ export default function ShopScreen() {
                     ) : (
                       <View style={styles.lockedContainer}>
                         <Lock size={24} color={colors.borderMain} />
-                        <Text style={styles.lockedText}>Cấp {item.requiredLevel}</Text>
+                         <Text style={styles.lockedText}>Cấp {item.requiredLevel || 1}</Text>
                       </View>
                     )}
                   </View>
@@ -169,24 +203,24 @@ export default function ShopScreen() {
                   
                   <View style={styles.priceTag}>
                     <Star size={12} color="#EAB308" fill="#EAB308" />
-                    <Text style={styles.priceText}>{item.price}</Text>
+                    <Text style={styles.priceText}>{item.price || 0}</Text>
                   </View>
 
                   {item.equipped ? (
-                    <TouchableOpacity style={[styles.actionBtn, styles.btnEquipped]}>
+                    <TouchableOpacity style={[styles.actionBtn, styles.btnEquipped]} disabled>
                       <Text style={styles.btnTextEquipped}>Đã trang bị</Text>
                     </TouchableOpacity>
                   ) : item.owned ? (
-                    <TouchableOpacity style={[styles.actionBtn, styles.btnOwned]} onPress={() => handleEquip(item._id)}>
-                      <Text style={styles.btnTextOwned}>Mặc thử</Text>
+                    <TouchableOpacity style={[styles.actionBtn, styles.btnOwned]} onPress={() => handleEquip(item._id)} disabled={!!pendingItemId}>
+                      <Text style={styles.btnTextOwned}>{isPending ? 'Đang mặc...' : 'Mặc thử'}</Text>
                     </TouchableOpacity>
                   ) : isLocked ? (
                     <View style={[styles.actionBtn, styles.btnLocked]}>
                       <Text style={styles.btnTextLocked}>Khóa</Text>
                     </View>
                   ) : canAfford ? (
-                    <TouchableOpacity style={[styles.actionBtn, styles.btnBuy]} onPress={() => handleBuy(item._id)}>
-                      <Text style={styles.btnTextBuy}>Mua ngay</Text>
+                    <TouchableOpacity style={[styles.actionBtn, styles.btnBuy]} onPress={() => handleBuy(item._id)} disabled={!!pendingItemId}>
+                      <Text style={styles.btnTextBuy}>{isPending ? 'Đang mua...' : 'Mua ngay'}</Text>
                     </TouchableOpacity>
                   ) : (
                     <View style={[styles.actionBtn, styles.btnLocked]}>
@@ -334,6 +368,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 16,
+  },
+  errorState: {
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 24,
+  },
+  errorText: {
+    ...typography.bodySmall,
+    color: colors.error,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  retryBtn: {
+    width: 140,
   },
   itemCard: {
     width: '47%',

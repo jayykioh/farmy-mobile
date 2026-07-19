@@ -63,6 +63,13 @@ export default function TabLayout() {
         }} 
       />
       <Tabs.Screen 
+        name="insight" 
+        options={{
+          title: 'Phân tích',
+          tabBarIcon: ({ color }) => <Sparkles color={color} size={24} />
+        }} 
+      />
+      <Tabs.Screen 
         name="chat" 
         options={{
           title: 'Trợ lý AI',

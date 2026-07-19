@@ -88,7 +88,7 @@ export default function RegisterScreen() {
           title="Đã có tài khoản? Đăng nhập"
           variant="outline"
           disabled={loading}
-          onPress={() => goBackOrReplace(router, '/(auth)/welcome')}
+          onPress={() => router.push('/(auth)/login')}
         />
       </View>
     </SafeAreaView>
