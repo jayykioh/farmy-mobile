@@ -53,6 +53,7 @@ const getReminderTypeIcon = (type?: ReminderType) => {
 };
 
 export default function RemindersScreen() {
+  const [now] = useState(() => Date.now());
   const [reminders, setReminders] = useState<ReminderItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -201,7 +202,7 @@ export default function RemindersScreen() {
           <View style={styles.listContainer}>
             {upcomingReminders.map(item => {
               const isPending = pendingReminderId === item._id;
-              const isOverdue = new Date(item.scheduled_at).getTime() < Date.now();
+              const isOverdue = new Date(item.scheduled_at).getTime() < now;
               return (
               <View key={item._id} style={styles.reminderCard}>
                 <View style={styles.iconContainer}>
@@ -242,7 +243,9 @@ export default function RemindersScreen() {
                       title="Xong" 
                       onPress={() => handleComplete(item._id)} 
                       style={styles.doneBtn}
+                      isLoading={isPending}
                       disabled={!!pendingReminderId}
+                      fullWidth={false}
                     />
                     <TouchableOpacity style={styles.cancelBtn} onPress={() => handleCancel(item._id)} disabled={!!pendingReminderId}>
                       <Trash2 size={12} color={colors.error} />

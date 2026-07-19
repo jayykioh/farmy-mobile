@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform, Alert, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform, Alert, FlatList, ActivityIndicator, DeviceEventEmitter } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Plus, CheckCircle2, Leaf, Sprout, Wheat } from 'lucide-react-native';
@@ -8,6 +8,7 @@ import { colors } from '../../src/theme/colors';
 import { PageHeader } from '../../src/components/PageHeader';
 import { useDiaries, type Diary } from '../../src/hooks/useDiary';
 import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
+import { useEffect } from 'react';
 
 export default function DiaryScreen() {
   const router = useRouter();
@@ -21,6 +22,13 @@ export default function DiaryScreen() {
       void refetch();
     }, [refetch])
   );
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('diary_updated', () => {
+      void refetch();
+    });
+    return () => sub.remove();
+  }, [refetch]);
 
   const sortedDiaries = useMemo(
     () => [...diaries].sort((a, b) => new Date(b.start_date || 0).getTime() - new Date(a.start_date || 0).getTime()),

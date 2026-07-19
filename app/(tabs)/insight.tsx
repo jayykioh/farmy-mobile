@@ -152,7 +152,7 @@ export default function InsightScreen() {
             </View>
             <Text style={styles.emptyTitle}>Chưa có bản tin phân tích nào</Text>
             <Text style={styles.emptyDescription}>
-              Hãy đảm bảo bạn đã ghi nhật ký chăm sóc cây trong tuần này, sau đó nhấn nút "Phân tích tuần này" để AI tổng hợp thông tin và cho bạn các khuyến nghị kỹ thuật.
+              Hãy đảm bảo bạn đã ghi nhật ký chăm sóc cây trong tuần này, sau đó nhấn nút &quot;Phân tích tuần này&quot; để AI tổng hợp thông tin và cho bạn các khuyến nghị kỹ thuật.
             </Text>
           </View>
         ) : (

@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
 import { PageHeader } from '../../src/components/PageHeader';
-import { Camera, Send, Sprout } from 'lucide-react-native';
+import { Camera, Send, Sprout, ThumbsUp, ThumbsDown } from 'lucide-react-native';
 import { useChat } from '../../src/hooks/useChat';
 import { useState, useRef } from 'react';
 import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
@@ -309,5 +309,19 @@ const styles = StyleSheet.create({
     color: colors.error,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  actionBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: colors.bgSurface1,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '30',
   }
 });
