@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import { RefreshCcw, Info } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import * as Device from 'expo-device';
 import { api } from '../src/api/client';
 import { typography } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
@@ -28,23 +28,36 @@ interface PlantDiagnosis {
   safety_alert?: string;
 }
 
-const MOCK_SCAN_IMAGE_URL = 'https://upload.wikimedia.org/wikipedia/commons/7/7c/Leaf_blight_symptoms_on_rice.jpg';
-const isMockCameraEnabled = __DEV__ && Platform.OS !== 'web' && !Device.isDevice;
+const normalizeDiagnosis = (data: any): PlantDiagnosis | null => data?.data?.diagnosis ?? data?.diagnosis ?? data?.data ?? null;
 
-const normalizeDiagnosis = (data: any): PlantDiagnosis | null => {
-  return data?.data?.diagnosis ?? data?.diagnosis ?? data?.data ?? null;
+const toFormData = async (uri: string, name: string, type = 'image/jpeg') => {
+  const formData = new FormData();
+
+  if (uri.startsWith('data:')) {
+    const blob = await fetch(uri).then((response) => response.blob());
+    formData.append('image', blob, name);
+  } else {
+    formData.append('image', { uri, type, name } as unknown as Blob);
+  }
+
+  formData.append('crop_type', 'Lúa');
+  return formData;
 };
 
 export default function ScanScreen() {
   const [scanState, setScanState] = useState<ScanState>('viewfinder');
   const [diagnosis, setDiagnosis] = useState<PlantDiagnosis | null>(null);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<any>(null);
   const router = useRouter();
 
-  const submitScan = async (formData: FormData, previewUri: string) => {
-    setScannedImage(previewUri);
+  const submitScan = async (uri: string, name: string, type?: string) => {
+    setScannedImage(uri);
     setScanState('analyzing');
 
+    const formData = await toFormData(uri, name, type);
     const res = await api.post('/plant-scans', formData, {
       timeout: 60000,
     });
@@ -58,54 +71,19 @@ export default function ScanScreen() {
     setScanState('result');
   };
 
-  const handleMockCapture = async () => {
-    try {
-      const imageResponse = await fetch(MOCK_SCAN_IMAGE_URL);
-      const imageBlob = await imageResponse.blob();
-      const formData = new FormData();
-      formData.append('image', imageBlob, 'mock-rice-leaf-blight.jpg');
-      formData.append('crop_type', 'Lúa');
-      await submitScan(formData, MOCK_SCAN_IMAGE_URL);
-    } catch (err) {
-      setScanState('viewfinder');
-      Alert.alert('Lỗi chẩn đoán', getErrorMessage(err, 'Không thể chạy quét thử bằng ảnh mẫu.'));
-    }
-  };
-
   const handleCapture = async () => {
-    if (isMockCameraEnabled) {
-      await handleMockCapture();
+    if (!cameraRef.current || !isCameraReady) {
+      Alert.alert('Máy ảnh chưa sẵn sàng', 'Vui lòng đợi camera khởi động xong rồi chụp lại.');
       return;
     }
 
     try {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Cần quyền camera', 'Farmy cần quyền camera để chụp ảnh lá cây chẩn đoán.');
-        return;
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
+      if (!photo?.uri) {
+        throw new Error('Không thể chụp ảnh.');
       }
 
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.85,
-      });
-
-      if (result.canceled || !result.assets[0]) {
-        return;
-      }
-
-      const image = result.assets[0];
-      const formData = new FormData();
-      formData.append('image', {
-        uri: image.uri,
-        type: image.mimeType || 'image/jpeg',
-        name: image.fileName || 'plant-scan.jpg',
-      } as unknown as Blob);
-      formData.append('crop_type', 'Lúa');
-
-      await submitScan(formData, image.uri);
+      await submitScan(photo.uri, 'plant-scan.jpg', photo.format ? `image/${photo.format}` : 'image/jpeg');
     } catch (err) {
       setScanState('viewfinder');
       Alert.alert('Lỗi chẩn đoán', getErrorMessage(err, 'Hệ thống quét gặp sự cố.'));
@@ -128,14 +106,7 @@ export default function ScanScreen() {
 
       if (!result.canceled && result.assets.length > 0) {
         const asset = result.assets[0];
-        const formData = new FormData();
-        formData.append('image', {
-          uri: asset.uri,
-          type: asset.mimeType || 'image/jpeg',
-          name: asset.fileName || 'plant-scan.jpg',
-        } as unknown as Blob);
-        formData.append('crop_type', 'Lúa');
-        await submitScan(formData, asset.uri);
+        await submitScan(asset.uri, asset.fileName || 'plant-scan.jpg', asset.mimeType || 'image/jpeg');
       }
     } catch (err) {
       Alert.alert('Lỗi', getErrorMessage(err, 'Không thể chọn ảnh từ thư viện.'));
@@ -159,35 +130,39 @@ export default function ScanScreen() {
 
       {scanState === 'viewfinder' && (
         <View style={styles.viewfinderContainer}>
-          <View style={styles.cameraBox}>
-            {isMockCameraEnabled ? (
-              <>
-                <Image source={{ uri: MOCK_SCAN_IMAGE_URL }} style={styles.mockCameraImage} />
-                <View style={styles.mockBadge}>
-                  <Text style={styles.mockBadgeText}>Ảnh mẫu Simulator</Text>
-                </View>
-              </>
-            ) : (
-              <View style={styles.liveHint}>
-                <Text style={styles.liveHintTitle}>Sẵn sàng quét</Text>
-                <Text style={styles.liveHintText}>Bấm chụp để mở camera và gửi ảnh lên AI.</Text>
-              </View>
-            )}
-            <View style={styles.cameraFrame} />
-            <View style={styles.captureOverlay}>
-              <TouchableOpacity style={styles.galleryBtn} onPress={handlePickImage}>
-                <Text style={styles.galleryBtnText}>Ảnh</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.captureBtn} onPress={handleCapture}>
-                <View style={styles.captureInner} />
-              </TouchableOpacity>
-              <View style={styles.galleryBtnPlaceholder} />
+          {!permission ? (
+            <View style={styles.permissionState}>
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
-          </View>
+          ) : !permission.granted ? (
+            <View style={styles.permissionState}>
+              <Text style={styles.permissionText}>Farmy cần quyền camera để chụp ảnh lá cây và phân tích bằng AI.</Text>
+              <Button title="Cấp quyền máy ảnh" onPress={requestPermission} />
+            </View>
+          ) : (
+            <View style={styles.cameraBox}>
+              <CameraView
+                ref={cameraRef}
+                style={styles.cameraPreview}
+                facing="back"
+                onCameraReady={() => setIsCameraReady(true)}
+                onMountError={() => setIsCameraReady(false)}
+              />
+              <View style={styles.cameraFrame} />
+              <View style={styles.captureOverlay}>
+                <TouchableOpacity style={styles.galleryBtn} onPress={handlePickImage} accessibilityRole="button">
+                  <Text style={styles.galleryBtnText}>Ảnh</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.captureBtn} onPress={handleCapture} accessibilityRole="button">
+                  <View style={styles.captureInner} />
+                </TouchableOpacity>
+                <View style={styles.galleryBtnPlaceholder} />
+              </View>
+            </View>
+          )}
+
           <Text style={styles.instructionText}>
-            {isMockCameraEnabled
-              ? 'Máy ảo đang dùng ảnh lá bệnh mẫu. Bấm nút chụp để test luồng AI.'
-              : 'Giữ camera sát lá bị bệnh để AI chẩn đoán tốt nhất'}
+            Giữ camera sát lá bị bệnh rồi bấm chụp để gửi ảnh lên AI.
           </Text>
         </View>
       )}
@@ -198,9 +173,7 @@ export default function ScanScreen() {
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
           <Text style={styles.analyzingTitle}>Đang phân tích...</Text>
-          <Text style={styles.analyzingSubtitle}>
-            Bé Thóc đang xem xét lá cây bằng Gemini AI, vui lòng đợi một chút nhé!
-          </Text>
+          <Text style={styles.analyzingSubtitle}>Bé Thóc đang xem xét lá cây bằng Gemini AI, vui lòng đợi một chút nhé!</Text>
         </View>
       )}
 
@@ -278,16 +251,8 @@ export default function ScanScreen() {
           </View>
 
           <View style={styles.actionButtons}>
-            <Button
-              title="Quay lại Nhật ký"
-              onPress={() => router.push('/(tabs)/diary')}
-              style={{ marginBottom: 12 }}
-            />
-            <Button
-              title="Hỏi ý kiến Bé Thóc AI"
-              variant="outline"
-              onPress={() => router.push('/(tabs)/chat')}
-            />
+            <Button title="Quay lại Nhật ký" onPress={() => router.push('/(tabs)/diary')} style={{ marginBottom: 12 }} />
+            <Button title="Hỏi ý kiến Bé Thóc AI" variant="outline" onPress={() => router.push('/(tabs)/chat')} />
 
             <TouchableOpacity style={styles.retakeBtn} onPress={handleRetake}>
               <RefreshCcw size={16} color={colors.textMain + '80'} />
@@ -311,6 +276,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  permissionState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+    padding: 24,
+  },
+  permissionText: {
+    ...typography.body,
+    textAlign: 'center',
+    color: colors.textMain + '90',
+  },
   cameraBox: {
     width: '100%',
     aspectRatio: 3 / 4,
@@ -322,40 +299,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 24,
   },
-  mockCameraImage: {
+  cameraPreview: {
     ...StyleSheet.absoluteFill,
     width: '100%',
     height: '100%',
-  },
-  mockBadge: {
-    position: 'absolute',
-    top: 18,
-    alignSelf: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0, 0, 0, 0.56)',
-  },
-  mockBadgeText: {
-    ...typography.caption,
-    color: colors.bgSurface,
-    fontWeight: '800',
-  },
-  liveHint: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  liveHintTitle: {
-    ...typography.h2,
-    color: colors.bgSurface,
-    marginBottom: 8,
-  },
-  liveHintText: {
-    ...typography.body,
-    color: colors.bgSurface + 'CC',
-    textAlign: 'center',
   },
   cameraFrame: {
     ...StyleSheet.absoluteFill,
