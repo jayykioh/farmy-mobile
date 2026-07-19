@@ -4,7 +4,7 @@ import { useAuthStore } from '../src/store/authStore';
 import * as Linking from 'expo-linking';
 import { api } from '../src/api/client';
 import { ErrorBoundary } from '../src/components/ErrorBoundary';
-import { getAccessTokenFromUrl } from '../src/utils/oauth';
+import { getAccessTokenFromUrl, getRefreshTokenFromUrl } from '../src/utils/oauth';
 
 export default function RootLayout() {
   const { checkAuth, setSession } = useAuthStore();
@@ -16,6 +16,7 @@ export default function RootLayout() {
     // Hứng link redirect khi đăng nhập Google thành công
     const handleDeepLink = async (event: { url: string }) => {
       const accessToken = getAccessTokenFromUrl(event.url);
+      const refreshToken = getRefreshTokenFromUrl(event.url);
 
       if (accessToken) {
         try {
@@ -26,7 +27,7 @@ export default function RootLayout() {
             }
           });
           if (response.data?.success && response.data?.data) {
-            await setSession(response.data.data, accessToken);
+            await setSession(response.data.data, accessToken, refreshToken || undefined);
             router.replace('/(tabs)/home');
           }
         } catch {

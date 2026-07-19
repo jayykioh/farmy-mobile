@@ -14,7 +14,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { goBackOrReplace } from '../../src/utils/navigation';
 import { getErrorMessage } from '../../src/utils/errors';
-import { getAccessTokenFromUrl } from '../../src/utils/oauth';
+import { getAccessTokenFromUrl, getRefreshTokenFromUrl } from '../../src/utils/oauth';
 
 // Đăng ký WebBrowser
 WebBrowser.maybeCompleteAuthSession();
@@ -41,7 +41,11 @@ export default function LoginScreen() {
         router.replace('/(tabs)/home');
       }
     } catch (error) {
-      Alert.alert('Lỗi đăng nhập', getErrorMessage(error, 'Không thể đăng nhập. Vui lòng kiểm tra lại thông tin.'));
+      let errorMessage = getErrorMessage(error, 'Không thể đăng nhập. Vui lòng kiểm tra lại thông tin.');
+      if (errorMessage.includes('Network Error')) {
+        errorMessage = `${errorMessage} (Base URL: ${api.defaults.baseURL || 'Chưa thiết lập'})`;
+      }
+      Alert.alert('Lỗi đăng nhập', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -63,7 +67,11 @@ export default function LoginScreen() {
       // Sử dụng openAuthSessionAsync để trình duyệt tự động đóng lại khi nhận link redirect
       authSessionResult = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
     } catch (error) {
-      Alert.alert('Lỗi kết nối', 'Không thể mở trình duyệt đăng nhập Google. Vui lòng kiểm tra lại.');
+      let errorMessage = getErrorMessage(error, 'Không thể mở trình duyệt đăng nhập Google. Vui lòng kiểm tra lại.');
+      if (errorMessage.includes('Network Error')) {
+        errorMessage = `${errorMessage} (Base URL: ${api.defaults.baseURL || 'Chưa thiết lập'})`;
+      }
+      Alert.alert('Lỗi kết nối', errorMessage);
       setLoading(false);
       return;
     }
@@ -71,6 +79,7 @@ export default function LoginScreen() {
     try {
       if (authSessionResult.type === 'success' && authSessionResult.url) {
         const token = getAccessTokenFromUrl(authSessionResult.url);
+        const refreshToken = getRefreshTokenFromUrl(authSessionResult.url);
         if (token) {
           const response = await api.get('/auth/me', {
             headers: {
@@ -79,7 +88,7 @@ export default function LoginScreen() {
           });
           const rawUser = response.data.data?.user ?? response.data.data;
           
-          await setSession(rawUser, token);
+          await setSession(rawUser, token, refreshToken || undefined);
           if (rawUser && !rawUser.onboardingCompleted) {
             router.replace('/(auth)/onboarding-1');
           } else {
@@ -92,7 +101,11 @@ export default function LoginScreen() {
         Alert.alert('Đăng nhập bị hủy', 'Bạn đã hủy luồng đăng nhập Google.');
       }
     } catch (error) {
-      Alert.alert('Lỗi kết nối', 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng.');
+      let errorMessage = getErrorMessage(error, 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng.');
+      if (errorMessage.includes('Network Error')) {
+        errorMessage = `${errorMessage} (Base URL: ${api.defaults.baseURL || 'Chưa thiết lập'})`;
+      }
+      Alert.alert('Lỗi kết nối', errorMessage);
     } finally {
       setLoading(false);
     }

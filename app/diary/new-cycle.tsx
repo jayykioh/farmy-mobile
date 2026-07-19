@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -25,7 +25,7 @@ const SEASON_MAPPING: Record<string, string[]> = {
 
 export default function NewCycleScreen() {
   const router = useRouter();
-  const { data: plots = [], isLoading: plotsLoading } = usePlots();
+  const { data: plots = [], isLoading: plotsLoading, refetch: refetchPlots } = usePlots();
   const { refetch: refetchDiaries } = useDiaries();
   
   const [selectedPlotId, setSelectedPlotId] = useState<string>('');
@@ -38,6 +38,51 @@ export default function NewCycleScreen() {
   const [showSeasonDropdown, setShowSeasonDropdown] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // States for creating a plot
+  const [showCreatePlotModal, setShowCreatePlotModal] = useState(false);
+  const [plotName, setPlotName] = useState('');
+  const [plotArea, setPlotArea] = useState('');
+  const [plotDescription, setPlotDescription] = useState('');
+  const [isSavingPlot, setIsSavingPlot] = useState(false);
+
+  const handleSavePlot = async () => {
+    if (!plotName.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập tên mảnh vườn.');
+      return;
+    }
+    const areaNum = Number(plotArea);
+    if (isNaN(areaNum) || areaNum <= 0) {
+      Alert.alert('Lỗi', 'Vui lòng nhập diện tích hợp lệ (lớn hơn 0).');
+      return;
+    }
+
+    setIsSavingPlot(true);
+    try {
+      const res = await api.post('/plots', {
+        name: plotName.trim(),
+        area_size: areaNum,
+        description: plotDescription.trim() || undefined,
+      });
+
+      const newPlot = res.data.data;
+      await refetchPlots();
+      
+      setSelectedPlotId(newPlot._id);
+      setShowCreatePlotModal(false);
+      
+      // Reset form states
+      setPlotName('');
+      setPlotArea('');
+      setPlotDescription('');
+
+      Alert.alert('Thành công', `Đã tạo mảnh vườn "${newPlot.name}" thành công.`);
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể tạo mảnh vườn.'));
+    } finally {
+      setIsSavingPlot(false);
+    }
+  };
 
   // Available seasons based on selected crop
   const availableSeasons = useMemo(() => {
@@ -98,11 +143,26 @@ export default function NewCycleScreen() {
             
             {/* Select Plot */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>1. Chọn mảnh vườn</Text>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>1. Chọn mảnh vườn</Text>
+                <TouchableOpacity onPress={() => setShowCreatePlotModal(true)} style={styles.addPlotLink}>
+                  <Text style={styles.addPlotLinkText}>+ Thêm mới</Text>
+                </TouchableOpacity>
+              </View>
+
               {plotsLoading ? (
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : plots.length === 0 ? (
-                <Text style={styles.emptyText}>Bạn chưa có mảnh vườn nào. Hãy tạo mảnh vườn trước.</Text>
+                <View style={styles.emptyPlotsContainer}>
+                  <Text style={styles.emptyText}>Bạn chưa có mảnh vườn nào.</Text>
+                  <TouchableOpacity
+                    style={styles.createPlotBtn}
+                    onPress={() => setShowCreatePlotModal(true)}
+                    activeOpacity={0.72}
+                  >
+                    <Text style={styles.createPlotBtnText}>+ Tạo mảnh vườn mới</Text>
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <>
                   <TouchableOpacity 
@@ -238,6 +298,80 @@ export default function NewCycleScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showCreatePlotModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => {
+          if (!isSavingPlot) setShowCreatePlotModal(false);
+        }}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => {
+            if (!isSavingPlot) setShowCreatePlotModal(false);
+          }}
+        >
+          <TouchableOpacity
+            style={styles.modalCard}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={styles.modalTitle}>Tạo mảnh vườn mới</Text>
+            
+            <Text style={styles.fieldLabel}>Tên mảnh vườn</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Ví dụ: Vườn lúa đông xuân, Thửa ruộng A"
+              value={plotName}
+              onChangeText={setPlotName}
+              editable={!isSavingPlot}
+              placeholderTextColor={colors.textMain + '40'}
+            />
+
+            <Text style={styles.fieldLabel}>Diện tích (m²)</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Ví dụ: 1000, 500"
+              value={plotArea}
+              onChangeText={setPlotArea}
+              keyboardType="numeric"
+              editable={!isSavingPlot}
+              placeholderTextColor={colors.textMain + '40'}
+            />
+
+            <Text style={styles.fieldLabel}>Mô tả (Không bắt buộc)</Text>
+            <TextInput
+              style={[styles.modalInput, styles.modalMultiline]}
+              placeholder="Mô tả thêm về mảnh vườn..."
+              value={plotDescription}
+              onChangeText={setPlotDescription}
+              multiline
+              editable={!isSavingPlot}
+              placeholderTextColor={colors.textMain + '40'}
+            />
+
+            <View style={styles.modalActions}>
+              <Button
+                title="Hủy"
+                variant="outline"
+                onPress={() => setShowCreatePlotModal(false)}
+                disabled={isSavingPlot}
+                style={styles.modalButton}
+              />
+              <Button
+                title={isSavingPlot ? "Đang lưu..." : "Lưu"}
+                onPress={handleSavePlot}
+                disabled={isSavingPlot}
+                style={styles.modalButton}
+                isLoading={isSavingPlot}
+              />
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -349,5 +483,90 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '700',
     color: colors.textMain + '80',
-  }
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addPlotLink: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  addPlotLinkText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  emptyPlotsContainer: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+  },
+  createPlotBtn: {
+    backgroundColor: colors.primary + '12',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  createPlotBtnText: {
+    ...typography.bodySmall,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: colors.bgSurface,
+    borderRadius: 28,
+    padding: 24,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  modalTitle: {
+    ...typography.h3,
+    color: colors.textMain,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  fieldLabel: {
+    ...typography.bodySmall,
+    fontWeight: '700',
+    color: colors.textMain + 'B3',
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  modalInput: {
+    ...typography.body,
+    backgroundColor: colors.bgMain,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '40',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: colors.textMain,
+  },
+  modalMultiline: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+  },
+  modalButton: {
+    flex: 1,
+  },
 });
