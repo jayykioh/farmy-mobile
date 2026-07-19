@@ -20,7 +20,7 @@
         } as any);
         ```
     *   Submits a multipart request via Axios:
-        `POST /plant-scan/analyze`
+        `POST /plant-scans`
 *   **Step 3: AI Diagnosis Presentation:**
     *   The backend responds with analysis data. The UI presents:
         *   Detected disease name.
