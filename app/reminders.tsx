@@ -97,7 +97,7 @@ export default function RemindersScreen() {
   };
 
   const upcomingReminders = reminders
-    .filter(item => item.status === 'pending' && new Date(item.scheduled_at).getTime() >= Date.now())
+    .filter(item => item.status === 'pending')
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
 
   return (
@@ -136,6 +136,7 @@ export default function RemindersScreen() {
             {upcomingReminders.map(item => {
               const frequencyLabel = getFrequencyLabel(item.frequency);
               const isPending = pendingReminderId === item._id;
+              const isOverdue = new Date(item.scheduled_at).getTime() < Date.now();
               return (
               <View key={item._id} style={styles.reminderCard}>
                 <View style={styles.iconContainer}>
@@ -153,6 +154,11 @@ export default function RemindersScreen() {
                     <View style={styles.tagPush}>
                       <Text style={styles.tagPushText}>{item.status}</Text>
                     </View>
+                    {isOverdue && (
+                      <View style={styles.tagOverdue}>
+                        <Text style={styles.tagOverdueText}>Quá hạn</Text>
+                      </View>
+                    )}
                     {frequencyLabel && (
                       <View style={styles.tagRepeat}>
                         <Repeat size={10} color="#B45309" />
@@ -312,6 +318,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     color: colors.textMain + 'B0',
+    textTransform: 'uppercase',
+  },
+  tagOverdue: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  tagOverdueText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.error,
     textTransform: 'uppercase',
   },
   tagRepeat: {
