@@ -16,10 +16,7 @@ if (!API_BASE_URL) {
 
 export const api = create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  timeout: 30000,
 });
 
 api.interceptors.request.use(async (config) => {

@@ -16,10 +16,13 @@ export interface Diary {
 export interface DiaryLog {
   _id: string;
   diary_id: string;
-  activity_type: string;
+  activity_type?: string;
+  activityType?: string;
   content: string;
   image_url?: string;
+  imageUrl?: string;
   photo_urls?: string[];
+  photoUrls?: string[];
   created_at: string;
 }
 

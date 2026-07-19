@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -15,6 +15,30 @@ export default function DiaryHistoryScreen() {
   
   const { data: diary, isLoading: diaryLoading, refetch: refetchDiary } = useDiaryDetail(id as string);
   const { data: logs, isLoading: logsLoading, refetch: refetchLogs } = useDiaryLogs(id as string);
+
+  const normalizeActivityType = (type?: string) => {
+    const normalized = type?.toLowerCase?.() ?? '';
+    if (normalized.includes('water') || normalized.includes('tưới')) return 'water';
+    if (normalized.includes('fertilizer') || normalized.includes('bón')) return 'fertilizer';
+    if (normalized.includes('pest') || normalized.includes('phun') || normalized.includes('sâu')) return 'pest';
+    return 'other';
+  };
+
+  const getActivityLabel = (type: string) => {
+    switch(type) {
+      case 'water': return 'Tưới nước';
+      case 'fertilizer': return 'Bón phân';
+      case 'pest': return 'Phun thuốc';
+      default: return 'Hoạt động khác';
+    }
+  };
+
+  const getLogImageUrls = (log: typeof logs[number]) => [
+    log.image_url,
+    log.imageUrl,
+    ...(log.photo_urls ?? []),
+    ...(log.photoUrls ?? []),
+  ].filter((url): url is string => Boolean(url));
 
   const getIcon = (type: string) => {
     switch(type) {
@@ -156,15 +180,22 @@ export default function DiaryHistoryScreen() {
         <View style={styles.logsContainer}>
           {logs?.map(log => (
             <View key={log._id} style={styles.logCard}>
-              <View style={[styles.logIcon, { backgroundColor: getBgColor(log.activity_type) }]}>
-                {getIcon(log.activity_type)}
+              <View style={[styles.logIcon, { backgroundColor: getBgColor(normalizeActivityType(log.activity_type ?? log.activityType)) }]}>                
+                {getIcon(normalizeActivityType(log.activity_type ?? log.activityType))}
               </View>
-              
+               
               <View style={styles.logInfo}>
                 <Text style={styles.logType}>
-                  {log.activity_type === 'water' ? 'Tưới nước' : log.activity_type === 'fertilizer' ? 'Bón phân' : 'Phun thuốc'}
+                  {getActivityLabel(normalizeActivityType(log.activity_type ?? log.activityType))}
                 </Text>
                 <Text style={styles.logContent}>{log.content}</Text>
+                {getLogImageUrls(log).length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.logImagesRow}>
+                    {getLogImageUrls(log).map(url => (
+                      <Image key={url} source={{ uri: url }} style={styles.logImage} />
+                    ))}
+                  </ScrollView>
+                )}
               </View>
 
               <View style={styles.logMeta}>
@@ -400,6 +431,18 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMain + 'CC',
     marginTop: 2,
+  },
+  logImagesRow: {
+    gap: 8,
+    paddingTop: 10,
+  },
+  logImage: {
+    width: 88,
+    height: 88,
+    borderRadius: 14,
+    backgroundColor: colors.bgSurface1,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '40',
   },
   logMeta: {
     alignItems: 'flex-end',

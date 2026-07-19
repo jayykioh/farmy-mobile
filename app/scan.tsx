@@ -56,17 +56,17 @@ export default function ScanScreen() {
       setScanState('analyzing');
 
       const formData = new FormData();
-      formData.append('crop_type', 'Lúa');
       formData.append('image', {
         uri: image.uri,
         type: image.mimeType || 'image/jpeg',
         name: image.fileName || 'plant-scan.jpg',
       } as unknown as Blob);
+      formData.append('crop_type', 'Lúa');
+
+      console.log('📸 Uploading scan:', { uri: image.uri, type: image.mimeType, name: image.fileName });
 
       const res = await api.post('/plant-scans', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        timeout: 60000,
       });
 
       if (res.data.success && res.data.data) {
@@ -76,6 +76,8 @@ export default function ScanScreen() {
         throw new Error('Không nhận được dữ liệu chẩn đoán.');
       }
     } catch (err) {
+      console.error('❌ Scan error:', err);
+      setScanState('viewfinder');
       Alert.alert('Lỗi chẩn đoán', getErrorMessage(err, 'Hệ thống quét gặp sự cố.'), [
         { text: 'Chụp lại', onPress: () => setScanState('viewfinder') }
       ]);
