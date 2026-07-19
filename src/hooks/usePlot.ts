@@ -15,7 +15,11 @@ export function usePlots() {
   const { isAuthenticated } = useAuthStore();
 
   const fetchPlots = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setData([]);
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       const res = await api.get('/plots');

@@ -3,69 +3,166 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
 import { PageHeader } from '../src/components/PageHeader';
-import { Camera, RefreshCcw, Info } from 'lucide-react-native';
-import { useState } from 'react';
+import { RefreshCcw, Info, Image as ImageIcon } from 'lucide-react-native';
+import { useState, useRef } from 'react';
 import { Button } from '../src/components/Button';
 import { useRouter } from 'expo-router';
 import { api } from '../src/api/client';
+import { CameraView, useCameraPermissions, type CameraCapturedPicture } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 
 type ScanState = 'viewfinder' | 'analyzing' | 'result';
 
+type Diagnosis = {
+  is_plant?: boolean;
+  disease?: string;
+  disease_name?: string;
+  confidence?: number;
+  symptoms?: string[];
+  treatment?: {
+    organic?: string;
+    chemical?: string;
+    phi_warning?: string;
+  };
+  safety_alert?: string;
+};
+
+type ImageUploadSource = {
+  uri: string;
+  name?: string | null;
+  type?: string | null;
+};
+
+const getImageFileName = (source: ImageUploadSource) =>
+  source.name || source.uri.split('/').pop()?.split('?')[0] || 'scan.jpg';
+
+const getImageMimeType = (source: ImageUploadSource) => {
+  if (source.type) return source.type;
+
+  const extension = getImageFileName(source).split('.').pop()?.toLowerCase();
+  if (extension === 'png') return 'image/png';
+  if (extension === 'heic' || extension === 'heif') return `image/${extension}`;
+  return 'image/jpeg';
+};
+
+const normalizeDiagnosis = (payload: unknown): Diagnosis | null => {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const response = payload as { data?: unknown };
+  const data = response.data as { diagnosis?: unknown } | undefined;
+  const diagnosis = data && typeof data === 'object' && 'diagnosis' in data ? data.diagnosis : response.data;
+
+  if (!diagnosis || typeof diagnosis !== 'object') return null;
+  return diagnosis as Diagnosis;
+};
+
 export default function ScanScreen() {
   const [scanState, setScanState] = useState<ScanState>('viewfinder');
-  const [diagnosis, setDiagnosis] = useState<any>(null);
+  const [diagnosis, setDiagnosis] = useState<Diagnosis | null>(null);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const router = useRouter();
+  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<CameraView | null>(null);
+  const isProcessingRef = useRef(false);
 
-  const handleCapture = async () => {
+  const resetToViewfinder = () => {
+    setScanState('viewfinder');
+    setIsCameraReady(false);
+  };
+
+  const processImage = async (source: ImageUploadSource) => {
+    if (isProcessingRef.current) return;
+
+    isProcessingRef.current = true;
     setScanState('analyzing');
-    
-    // Sử dụng ảnh lá cây thật từ Unsplash để Gemini phân tích chính xác
-    const leafImageUrl = 'https://images.unsplash.com/photo-1592150621744-aca64f48394a?q=80&w=400&auto=format&fit=crop';
-    setScannedImage(leafImageUrl);
+    setScannedImage(source.uri);
 
     try {
-      // 1. Tải ảnh về dưới dạng Blob
-      const response = await fetch(leafImageUrl);
-      const blob = await response.blob();
-
-      // 2. Tạo FormData
       const formData = new FormData();
-      formData.append('crop_type', 'Lúa');
-      // React Native FormData yêu cầu object đặc biệt cho file
-      formData.append('image', {
-        uri: leafImageUrl,
-        type: 'image/jpeg',
-        name: 'plant-leaf.jpg',
-      } as any);
+      const filename = getImageFileName(source);
 
-      // 3. Gọi API quét sâu bệnh
+      formData.append('image', {
+        uri: source.uri,
+        name: filename,
+        type: getImageMimeType(source),
+      } as unknown as Blob);
+
       const res = await api.post('/plant-scans', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
-      if (res.data.success && res.data.data) {
-        setDiagnosis(res.data.data.diagnosis);
+      const nextDiagnosis = normalizeDiagnosis(res.data);
+
+      if (res.data?.success && nextDiagnosis) {
+        setDiagnosis(nextDiagnosis);
         setScanState('result');
       } else {
         throw new Error('Không nhận được dữ liệu chẩn đoán.');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      const errMsg = err.response?.data?.message || err.message || 'Hệ thống quét gặp sự cố.';
+      const error = err as { response?: { data?: { message?: string } }; message?: string };
+      const errMsg = error.response?.data?.message || error.message || 'Hệ thống quét gặp sự cố.';
       Alert.alert('Lỗi chẩn đoán', errMsg, [
-        { text: 'Chụp lại', onPress: () => setScanState('viewfinder') }
+        { text: 'Quét lại', onPress: resetToViewfinder }
       ]);
+    } finally {
+      isProcessingRef.current = false;
+    }
+  };
+
+  const handleCapture = async () => {
+    if (!cameraRef.current || !isCameraReady) {
+      Alert.alert('Máy ảnh chưa sẵn sàng', 'Vui lòng đợi camera khởi động xong rồi chụp lại.');
+      return;
+    }
+
+    try {
+      const photo: CameraCapturedPicture = await cameraRef.current.takePictureAsync({ quality: 0.85 });
+      if (photo) {
+        await processImage({ uri: photo.uri, type: `image/${photo.format || 'jpeg'}` });
+      }
+    } catch {
+      Alert.alert('Lỗi', 'Không thể chụp ảnh.');
+    }
+  };
+
+  const handlePickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Quyền truy cập', 'Ứng dụng cần quyền truy cập thư viện ảnh để tải lên hình ảnh.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets.length > 0) {
+        const asset = result.assets[0];
+        await processImage({ uri: asset.uri, name: asset.fileName, type: asset.mimeType });
+      }
+    } catch {
+      Alert.alert('Lỗi', 'Không thể chọn ảnh từ thư viện.');
     }
   };
 
   const handleRetake = () => {
     setDiagnosis(null);
     setScannedImage(null);
-    setScanState('viewfinder');
+    resetToViewfinder();
   };
+
+  const diseaseName = diagnosis?.disease_name || diagnosis?.disease || 'Cây khỏe mạnh (Không phát hiện bệnh)';
+  const confidencePercent = typeof diagnosis?.confidence === 'number'
+    ? Math.max(0, Math.min(100, Math.round(diagnosis.confidence * 100)))
+    : null;
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
@@ -73,17 +170,43 @@ export default function ScanScreen() {
 
       {scanState === 'viewfinder' && (
         <View style={styles.viewfinderContainer}>
-          <View style={styles.cameraBox}>
-            <View style={styles.cameraFrame} />
-            <View style={styles.captureOverlay}>
-              <TouchableOpacity style={styles.captureBtn} onPress={handleCapture}>
-                <View style={styles.captureInner} />
-              </TouchableOpacity>
+          {!permission ? (
+            <View style={{ flex: 1, justifyContent: 'center' }}>
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
-          </View>
-          <Text style={styles.instructionText}>
-            Giữ camera sát lá bị bệnh để AI chẩn đoán tốt nhất
-          </Text>
+          ) : !permission.granted ? (
+            <View style={{ alignItems: 'center', padding: 20 }}>
+              <Text style={{ textAlign: 'center', marginBottom: 20 }}>
+                Chúng tôi cần quyền truy cập máy ảnh để quét bệnh cho cây.
+              </Text>
+              <Button title="Cấp quyền máy ảnh" onPress={requestPermission} />
+            </View>
+          ) : (
+            <View style={styles.cameraBox}>
+              <CameraView 
+                style={styles.cameraPreview} 
+                ref={cameraRef}
+                facing="back"
+                onCameraReady={() => setIsCameraReady(true)}
+                onMountError={() => setIsCameraReady(false)}
+              />
+              <View style={styles.cameraFrame} />
+              <View style={styles.captureOverlay}>
+                <TouchableOpacity style={styles.galleryBtn} onPress={handlePickImage}>
+                  <ImageIcon size={24} color="#FFF" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.captureBtn} onPress={handleCapture}>
+                  <View style={styles.captureInner} />
+                </TouchableOpacity>
+                <View style={styles.galleryBtnPlaceholder} />
+              </View>
+            </View>
+          )}
+          {permission?.granted && (
+            <Text style={styles.instructionText}>
+              Giữ camera sát lá bị bệnh để AI chẩn đoán tốt nhất
+            </Text>
+          )}
         </View>
       )}
 
@@ -132,17 +255,17 @@ export default function ScanScreen() {
             </View>
             
             <Text style={styles.diseaseName}>
-              {diagnosis.disease || 'Cây khỏe mạnh (Không phát hiện bệnh)'}
+              {diseaseName}
             </Text>
             
-            {diagnosis.confidence !== undefined && (
+            {confidencePercent !== null && (
               <>
                 <View style={styles.confidenceRow}>
                   <Text style={styles.confidenceLabel}>Độ chính xác AI</Text>
-                  <Text style={styles.confidenceValue}>{Math.round(diagnosis.confidence * 100)}%</Text>
+                  <Text style={styles.confidenceValue}>{confidencePercent}%</Text>
                 </View>
                 <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: `${diagnosis.confidence * 100}%` }]} />
+                  <View style={[styles.progressFill, { width: `${confidencePercent}%` }]} />
                 </View>
               </>
             )}
@@ -231,6 +354,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 24,
   },
+  cameraPreview: {
+    ...StyleSheet.absoluteFill,
+  },
   cameraFrame: {
     ...StyleSheet.absoluteFill,
     borderWidth: 2,
@@ -244,7 +370,21 @@ const styles = StyleSheet.create({
     bottom: 32,
     left: 0,
     right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
     alignItems: 'center',
+  },
+  galleryBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  galleryBtnPlaceholder: {
+    width: 48,
+    height: 48,
   },
   captureBtn: {
     width: 80,

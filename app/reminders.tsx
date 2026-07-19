@@ -1,18 +1,29 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
 import { PageHeader } from '../src/components/PageHeader';
-import { Droplets, Clock, Plus, Trash2, Repeat } from 'lucide-react-native';
+import { Droplets, Clock, Trash2, Repeat, Leaf, BugOff } from 'lucide-react-native';
 import { Button } from '../src/components/Button';
-import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { api } from '../src/api/client';
+import { usePetStatus } from '../src/hooks/usePet';
+
+type Reminder = {
+  _id: string;
+  title: string;
+  scheduled_at: string;
+  status: string;
+  type?: string;
+  frequency?: string;
+};
 
 export default function RemindersScreen() {
-  const router = useRouter();
-  const [reminders, setReminders] = useState<any[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingReminderId, setPendingReminderId] = useState<string | null>(null);
+  const { refetch: refetchPet } = usePetStatus();
 
   const fetchReminders = async () => {
     try {
@@ -20,9 +31,11 @@ export default function RemindersScreen() {
       const res = await api.get('/reminders');
       if (res.data.success) {
         setReminders(res.data.data);
+        setError(null);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
+      setError('Không thể tải nhắc nhở. Vui lòng thử lại.');
     } finally {
       setIsLoading(false);
     }
@@ -34,13 +47,16 @@ export default function RemindersScreen() {
 
   const handleComplete = async (id: string) => {
     try {
+      setPendingReminderId(id);
       const res = await api.patch(`/reminders/${id}/complete`);
       if (res.data.success) {
         Alert.alert('Thành công', 'Đã hoàn thành nhắc nhở chăm sóc!');
-        fetchReminders();
+        await Promise.all([fetchReminders(), refetchPet()]);
       }
     } catch (err: any) {
       Alert.alert('Lỗi', err.response?.data?.message || 'Không thể cập nhật nhắc nhở.');
+    } finally {
+      setPendingReminderId(null);
     }
   };
 
@@ -49,35 +65,40 @@ export default function RemindersScreen() {
       { text: 'Quay lại', style: 'cancel' },
       { text: 'Xác nhận hủy', style: 'destructive', onPress: async () => {
           try {
+            setPendingReminderId(id);
             await api.patch(`/reminders/${id}/cancel`);
             Alert.alert('Thành công', 'Đã hủy nhắc nhở.');
-            fetchReminders();
+            await fetchReminders();
           } catch (err: any) {
             Alert.alert('Lỗi', err.response?.data?.message || 'Không thể hủy nhắc nhở.');
+          } finally {
+            setPendingReminderId(null);
           }
         }
       }
     ]);
   };
 
-  const handleAddMockReminder = async () => {
-    try {
-      // Gọi API tạo một nhắc nhở tưới nước mẫu
-      const res = await api.post('/reminders', {
-        title: 'Tưới nước Lúa Đài Thơm (Di động)',
-        description: 'Tưới nước duy trì độ ẩm cho ruộng lúa.',
-        scheduled_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour later
-        type: 'water',
-        frequency: 'daily',
-      });
-      if (res.data.success) {
-        Alert.alert('Thành công', 'Đã tạo nhắc nhở tưới nước hàng ngày!');
-        fetchReminders();
-      }
-    } catch (err: any) {
-      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể tạo nhắc nhở.');
+  const getReminderIcon = (type?: string) => {
+    switch (type) {
+      case 'fertilizer': return <Leaf size={24} color="#10B981" />;
+      case 'pest': return <BugOff size={24} color="#F97316" />;
+      default: return <Droplets size={24} color="#3B82F6" />;
     }
   };
+
+  const getFrequencyLabel = (frequency?: string) => {
+    switch (frequency) {
+      case 'daily': return 'Hàng ngày';
+      case 'weekly': return 'Hàng tuần';
+      case 'monthly': return 'Hàng tháng';
+      default: return null;
+    }
+  };
+
+  const upcomingReminders = reminders
+    .filter(item => item.status === 'pending' && new Date(item.scheduled_at).getTime() >= Date.now())
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
@@ -103,14 +124,22 @@ export default function RemindersScreen() {
 
         {isLoading ? (
           <ActivityIndicator size="large" color={colors.primary} />
-        ) : reminders.length === 0 ? (
+        ) : error ? (
+          <View style={styles.errorState}>
+            <Text style={styles.errorText}>{error}</Text>
+            <Button title="Thử lại" onPress={fetchReminders} style={styles.retryBtn} />
+          </View>
+        ) : upcomingReminders.length === 0 ? (
           <Text style={{ textAlign: 'center', marginTop: 24, color: colors.textMuted }}>Không có nhắc nhở nào sắp tới.</Text>
         ) : (
           <View style={styles.listContainer}>
-            {reminders.map(item => (
+            {upcomingReminders.map(item => {
+              const frequencyLabel = getFrequencyLabel(item.frequency);
+              const isPending = pendingReminderId === item._id;
+              return (
               <View key={item._id} style={styles.reminderCard}>
                 <View style={styles.iconContainer}>
-                  <Droplets size={24} color="#3B82F6" />
+                  {getReminderIcon(item.type)}
                 </View>
                 
                 <View style={styles.infoContainer}>
@@ -124,10 +153,10 @@ export default function RemindersScreen() {
                     <View style={styles.tagPush}>
                       <Text style={styles.tagPushText}>{item.status}</Text>
                     </View>
-                    {item.frequency !== 'none' && (
+                    {frequencyLabel && (
                       <View style={styles.tagRepeat}>
                         <Repeat size={10} color="#B45309" />
-                        <Text style={styles.tagRepeatText}>Hàng ngày</Text>
+                        <Text style={styles.tagRepeatText}>{frequencyLabel}</Text>
                       </View>
                     )}
                   </View>
@@ -139,24 +168,21 @@ export default function RemindersScreen() {
                       title="Xong" 
                       onPress={() => handleComplete(item._id)} 
                       style={styles.doneBtn}
+                      disabled={!!pendingReminderId}
                     />
-                    <TouchableOpacity style={styles.cancelBtn} onPress={() => handleCancel(item._id)}>
+                    <TouchableOpacity style={styles.cancelBtn} onPress={() => handleCancel(item._id)} disabled={!!pendingReminderId}>
                       <Trash2 size={12} color={colors.error} />
-                      <Text style={styles.cancelText}>Hủy</Text>
+                      <Text style={styles.cancelText}>{isPending ? 'Đang xử lý' : 'Hủy'}</Text>
                     </TouchableOpacity>
                   </View>
                 )}
               </View>
-            ))}
+            )})}
           </View>
         )}
 
       </ScrollView>
 
-      {/* FAB: Thêm nhắc nhở mẫu nhanh */}
-      <TouchableOpacity style={styles.fab} activeOpacity={0.8} onPress={handleAddMockReminder}>
-        <Plus color={colors.bgSurface} size={32} />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -211,6 +237,20 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     gap: 12,
+  },
+  errorState: {
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 24,
+  },
+  errorText: {
+    ...typography.bodySmall,
+    color: colors.error,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  retryBtn: {
+    width: 140,
   },
   reminderCard: {
     backgroundColor: colors.bgSurface,
@@ -311,20 +351,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.error + 'B0',
   },
-  fab: {
-    position: 'absolute',
-    bottom: 32,
-    right: 24,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
-  }
 });

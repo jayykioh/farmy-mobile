@@ -1,11 +1,11 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
 import { PageHeader } from '../../src/components/PageHeader';
 import { Plus, CheckCircle2, Leaf, Sprout, Wheat } from 'lucide-react-native';
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useDiaries } from '../../src/hooks/useDiary';
 import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
 
@@ -16,11 +16,26 @@ export default function DiaryScreen() {
   const { width, gutter, contentMaxWidth, isCompact, isWide } = useResponsiveLayout();
   const fabRight = isWide ? Math.max(gutter, (width - contentMaxWidth) / 2 + 8) : gutter;
 
-  const filters = ['All', 'Lúa', 'Bưởi', 'Cà phê'];
-
-  const filteredDiaries = diaries.filter(d => 
-    filter === 'All' ? true : d.crop_type.includes(filter)
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
   );
+
+  const sortedDiaries = [...diaries].sort((a, b) => {
+    const left = new Date(a.start_date || 0).getTime();
+    const right = new Date(b.start_date || 0).getTime();
+    return right - left;
+  });
+  const cropFilters = Array.from(new Set(sortedDiaries.map(d => d.crop_type).filter(Boolean))).sort();
+  const filters = [{ id: 'All', label: 'Tất cả' }, ...cropFilters.map(crop => ({ id: crop, label: crop }))];
+  const activeFilter = filters.some(item => item.id === filter) ? filter : 'All';
+  const filteredDiaries = sortedDiaries.filter(diary =>
+    activeFilter === 'All' ? true : diary.crop_type === activeFilter
+  );
+  const emptyText = sortedDiaries.length === 0
+    ? 'Chưa có nhật ký nào.'
+    : 'Không có mùa vụ phù hợp với bộ lọc này.';
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
@@ -31,15 +46,15 @@ export default function DiaryScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.filterScroll, { paddingHorizontal: gutter }]}>
           {filters.map(f => (
             <TouchableOpacity 
-              key={f} 
-              style={[styles.filterChip, filter === f ? styles.filterChipActive : null]}
-              onPress={() => setFilter(f)}
+              key={f.id} 
+              style={[styles.filterChip, activeFilter === f.id ? styles.filterChipActive : null]}
+              onPress={() => setFilter(f.id)}
               activeOpacity={0.72}
               accessibilityRole="button"
-              accessibilityState={{ selected: filter === f }}
+              accessibilityState={{ selected: activeFilter === f.id }}
             >
-              <Text style={[styles.filterText, filter === f ? styles.filterTextActive : null]}>
-                {f}
+              <Text style={[styles.filterText, activeFilter === f.id ? styles.filterTextActive : null]}>
+                {f.label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -51,12 +66,19 @@ export default function DiaryScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
       >
+        {isLoading && sortedDiaries.length === 0 && (
+          <View style={styles.emptyState}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.emptyText}>Đang tải nhật ký...</Text>
+          </View>
+        )}
+
         {filteredDiaries.length === 0 && !isLoading && (
           <View style={styles.emptyState}>
             <View style={styles.emptyIcon}>
               <Sprout size={36} color={colors.primary} />
             </View>
-            <Text style={styles.emptyText}>Chưa có nhật ký nào.</Text>
+            <Text style={styles.emptyText}>{emptyText}</Text>
           </View>
         )}
 
@@ -72,13 +94,13 @@ export default function DiaryScreen() {
             <View style={[styles.cardHeader, isCompact && styles.cardHeaderCompact]}>
               <View style={styles.cropInfo}>
                 <View style={styles.cropIconBg}>
-                  {diary.crop_type.includes('Lúa')
+                  {diary.crop_type?.includes('Lúa')
                     ? <Wheat size={24} color={colors.warning} />
                     : <Leaf size={24} color={colors.primary} />}
                 </View>
                 <View style={styles.cropTextBlock}>
-                  <Text style={styles.cropName}>{diary.crop_type} {diary.season ? `(${diary.season})` : ''}</Text>
-                  <Text style={styles.startDate}>Bắt đầu: {new Date(diary.start_date).toLocaleDateString('vi-VN')}</Text>
+                  <Text style={styles.cropName}>{diary.crop_type || 'Mùa vụ'} {diary.season ? `(${diary.season})` : ''}</Text>
+                  <Text style={styles.startDate}>Bắt đầu: {diary.start_date ? new Date(diary.start_date).toLocaleDateString('vi-VN') : 'Chưa thiết lập'}</Text>
                 </View>
               </View>
               {diary.status === 'active' && (
@@ -92,7 +114,7 @@ export default function DiaryScreen() {
             <View style={styles.tagsContainer}>
               <View style={styles.tag}>
                 <Leaf size={14} color={colors.textMain + '80'} />
-                <Text style={styles.tagText}>{diary.health_status}</Text>
+                <Text style={styles.tagText}>{diary.health_status || 'Chưa cập nhật'}</Text>
               </View>
             </View>
           </TouchableOpacity>

@@ -57,12 +57,22 @@ export function useChat() {
     });
 
     es.addEventListener('done' as any, () => {
+      if (!currentBotContent) {
+        setMessages(prev => prev.map(m => m.id === botMsgId ? {
+          ...m,
+          content: 'Mình chưa nhận được phản hồi từ AI. Bạn thử gửi lại câu hỏi nhé.',
+        } : m));
+      }
       setIsTyping(false);
       es.close();
     });
 
     es.addEventListener('error' as any, (event: any) => {
       console.error('SSE Error:', event);
+      setMessages(prev => prev.map(m => m.id === botMsgId ? {
+        ...m,
+        content: currentBotContent || 'Kết nối AI đang gặp sự cố. Bạn vui lòng thử lại sau ít phút.',
+      } : m));
       setIsTyping(false);
       es.close();
     });
