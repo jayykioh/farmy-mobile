@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -67,14 +67,10 @@ export default function ProfileScreen() {
 
         {/* Level XP Card */}
         <View style={styles.xpCard}>
-          <View style={[styles.xpHeader, isCompact && styles.xpHeaderCompact]}>
-            <View>
-              <Text style={styles.levelTitle}>Cấp độ {level}</Text>
-              <Text style={styles.levelSubtitle}>{badgeLabel} Trồng Trọt</Text>
-            </View>
-            <View style={[styles.xpRight, isCompact && styles.xpRightCompact]}>
-              <Text style={styles.xpAmount}>{xp} XP</Text>
-              <Text style={styles.xpTarget}>/ {maxXp} XP lên cấp {level + 1}</Text>
+          {isPetLoading ? (
+            <View style={styles.xpLoadingRow}>
+              <ActivityIndicator color={colors.primary} />
+              <Text style={styles.xpStateText}>Đang tải XP...</Text>
             </View>
           ) : petError ? (
             <Text style={styles.xpStateText}>Chưa thể tải XP. Kéo xuống hoặc mở lại hồ sơ để thử lại.</Text>
@@ -161,7 +157,8 @@ export default function ProfileScreen() {
                 </View>
                 <Text style={styles.settingText}>Trợ giúp & hỗ trợ</Text>
               </View>
-            </View>
+              <ChevronRight size={20} color={colors.borderMain} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -294,6 +291,11 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     fontWeight: '700',
     color: colors.textMain + 'B0',
+  },
+  xpLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   xpHeader: {
     flexDirection: 'row',
