@@ -10,6 +10,7 @@ import { PageHeader } from '../../src/components/PageHeader';
 import { useState } from 'react';
 import { useAuthStore } from '../../src/store/authStore';
 import { goBackOrReplace } from '../../src/utils/navigation';
+import { getErrorMessage } from '../../src/utils/errors';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -27,16 +28,15 @@ export default function RegisterScreen() {
     }
     try {
       setLoading(true);
-      await registerUser({ name, email, password, role: 'farmer' });
+      await registerUser({ name, email, password, role: 'user' });
       const u = useAuthStore.getState().user;
       if (u && !u.onboardingCompleted) {
         router.replace('/(auth)/onboarding-1');
       } else {
         router.replace('/(tabs)/home');
       }
-    } catch (error: any) {
-      console.error(error);
-      Alert.alert('Lỗi đăng ký', error.response?.data?.message || 'Không thể đăng ký tài khoản.');
+    } catch (error) {
+      Alert.alert('Lỗi đăng ký', getErrorMessage(error, 'Không thể đăng ký tài khoản.'));
     } finally {
       setLoading(false);
     }

@@ -4,7 +4,7 @@ import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
 import { useAuthStore } from '../../src/store/authStore';
 import { usePetStatus } from '../../src/hooks/usePet';
-import { CloudRain, Sun, Wind, Droplets, Camera, MessageCircleQuestion, Flame, Sprout } from 'lucide-react-native';
+import { Droplets, Camera, MessageCircleQuestion, Flame, Sprout, Bell } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
 
@@ -94,25 +94,30 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.actionText}>Hỏi AI</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.actionCard, isCompact && styles.actionCardCompact]} onPress={() => router.push('/reminders')} activeOpacity={0.72} accessibilityRole="button">
+            <View style={[styles.actionIconBg, { backgroundColor: colors.secondaryLight + '80' }]}> 
+              <Bell size={24} color={colors.secondaryDark} />
+            </View>
+            <Text style={styles.actionText}>Nhắc nhở</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Weather Mini Widget */}
+        {/* Daily care tip */}
         <View style={[styles.weatherWidget, isCompact && styles.weatherWidgetCompact]}>
           <View style={styles.weatherLeft}>
-            <Sun size={32} color={colors.warning} />
+            <Sprout size={32} color={colors.primary} />
             <View>
-              <Text style={styles.tempText}>32°C</Text>
-              <Text style={styles.weatherDesc}>Nắng nhẹ, phù hợp tưới tiêu</Text>
+              <Text style={styles.tempText}>Mẹo hôm nay</Text>
+              <Text style={styles.weatherDesc}>Kiểm tra mặt dưới lá và ghi lại dấu hiệu bất thường vào nhật ký.</Text>
             </View>
           </View>
           <View style={styles.weatherDetails}>
             <View style={styles.weatherDetailItem}>
-              <CloudRain size={12} color={colors.textMuted} />
-              <Text style={styles.weatherDetailText}>10%</Text>
+              <Text style={styles.weatherDetailText}>+ Nhật ký</Text>
             </View>
             <View style={styles.weatherDetailItem}>
-              <Wind size={12} color={colors.textMuted} />
-              <Text style={styles.weatherDetailText}>5km/h</Text>
+              <Text style={styles.weatherDetailText}>+ Nhắc nhở</Text>
             </View>
           </View>
         </View>

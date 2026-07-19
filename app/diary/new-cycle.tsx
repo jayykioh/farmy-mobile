@@ -11,6 +11,7 @@ import { goBackOrReplace } from '../../src/utils/navigation';
 import { api } from '../../src/api/client';
 import { usePlots } from '../../src/hooks/usePlot';
 import { useDiaries } from '../../src/hooks/useDiary';
+import { getErrorMessage } from '../../src/utils/errors';
 
 const CROP_TYPES = ['Lúa nước', 'Cây ăn trái', 'Cà phê', 'Rau màu', 'Khác'];
 
@@ -74,9 +75,8 @@ export default function NewCycleScreen() {
           goBackOrReplace(router, '/(tabs)/diary');
         }}
       ]);
-    } catch (err: any) {
-      console.error(err);
-      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể tạo vụ mùa.');
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể tạo vụ mùa.'));
     } finally {
       setIsSubmitting(false);
     }

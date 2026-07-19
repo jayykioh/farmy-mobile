@@ -12,6 +12,7 @@ import { useDiaries } from '../../src/hooks/useDiary';
 import { api } from '../../src/api/client';
 import { createDiaryRequestHash } from '../../src/utils/diaryHash';
 import * as ImagePicker from 'expo-image-picker';
+import { getErrorMessage } from '../../src/utils/errors';
 
 export default function CreateDiaryScreen() {
   const router = useRouter();
@@ -52,7 +53,7 @@ export default function CreateDiaryScreen() {
           uri: selectedImage.uri,
           name: filename,
           type,
-        } as any);
+        } as unknown as Blob);
 
         const response = await api.post('/snaps/upload', formData, {
           headers: {
@@ -65,10 +66,8 @@ export default function CreateDiaryScreen() {
         } else {
           throw new Error('Không nhận được đường dẫn ảnh từ máy chủ.');
         }
-      } catch (err: any) {
-        console.error(err);
-        const errMsg = err.response?.data?.message || err.message || 'Không thể tải ảnh lên.';
-        Alert.alert('Lỗi tải ảnh', errMsg);
+      } catch (err) {
+        Alert.alert('Lỗi tải ảnh', getErrorMessage(err, 'Không thể tải ảnh lên.'));
       } finally {
         setIsUploading(false);
       }
@@ -125,9 +124,8 @@ export default function CreateDiaryScreen() {
       Alert.alert('Thành công', 'Đã lưu nhật ký mới.', [
         { text: 'OK', onPress: () => goBackOrReplace(router, '/(tabs)/diary') }
       ]);
-    } catch (err: any) {
-      console.error(err);
-      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể tạo nhật ký.');
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể tạo nhật ký.'));
     } finally {
       setIsSubmitting(false);
     }

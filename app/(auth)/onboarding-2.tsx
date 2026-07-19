@@ -8,6 +8,7 @@ import { typography } from '../../src/theme/typography';
 import { api } from '../../src/api/client';
 import { useAuthStore } from '../../src/store/authStore';
 import { ChevronLeft } from 'lucide-react-native';
+import { getErrorMessage } from '../../src/utils/errors';
 
 export default function OnboardingStep2() {
   const router = useRouter();
@@ -23,9 +24,8 @@ export default function OnboardingStep2() {
         try {
           setIsEmailTestLoading(true);
           await api.post('/auth/email-notification/test');
-        } catch (error: any) {
-          console.error('Failed to send Email test notification:', error);
-          Alert.alert('Thông báo', 'Không thể gửi email kiểm tra, tuy nhiên bạn vẫn có thể tiếp tục thiết lập.');
+        } catch (error) {
+          Alert.alert('Thông báo', `${getErrorMessage(error, 'Không thể gửi email kiểm tra.') } Bạn vẫn có thể tiếp tục thiết lập.`);
         } finally {
           setIsEmailTestLoading(false);
         }
@@ -74,7 +74,7 @@ export default function OnboardingStep2() {
             Bé Thóc sẽ gửi email cho bạn khi đến lịch chăm sóc cây để tối ưu năng suất vụ mùa.
           </Text>
 
-          {/* Connect Mock Card */}
+        {/* Notification setup card */}
           <TouchableOpacity 
             style={styles.connectCard}
             onPress={() => setIsConnected(!isConnected)}

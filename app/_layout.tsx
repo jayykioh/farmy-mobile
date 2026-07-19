@@ -3,6 +3,8 @@ import { Stack, useRouter } from 'expo-router';
 import { useAuthStore } from '../src/store/authStore';
 import * as Linking from 'expo-linking';
 import { api } from '../src/api/client';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
+import { getAccessTokenFromUrl } from '../src/utils/oauth';
 
 export default function RootLayout() {
   const { checkAuth, setSession } = useAuthStore();
@@ -13,8 +15,7 @@ export default function RootLayout() {
 
     // Hứng link redirect khi đăng nhập Google thành công
     const handleDeepLink = async (event: { url: string }) => {
-      const parsed = Linking.parse(event.url);
-      const accessToken = parsed.queryParams?.accessToken as string;
+      const accessToken = getAccessTokenFromUrl(event.url);
 
       if (accessToken) {
         try {
@@ -28,8 +29,7 @@ export default function RootLayout() {
             await setSession(response.data.data, accessToken);
             router.replace('/(tabs)/home');
           }
-        } catch (error) {
-          console.error('Lỗi xử lý Deep Link đăng nhập Google:', error);
+        } catch {
         }
       }
     };
@@ -42,13 +42,22 @@ export default function RootLayout() {
     });
 
     return () => subscription.remove();
-  }, []);
+  }, [checkAuth, router, setSession]);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-      <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-    </Stack>
+    <ErrorBoundary>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="scan" options={{ animation: 'fade' }} />
+        <Stack.Screen name="shop" options={{ animation: 'fade' }} />
+        <Stack.Screen name="reminders" options={{ animation: 'fade' }} />
+        <Stack.Screen name="diary/[id]" options={{ animation: 'fade' }} />
+        <Stack.Screen name="diary/create" options={{ animation: 'fade' }} />
+        <Stack.Screen name="diary/new-cycle" options={{ animation: 'fade' }} />
+        <Stack.Screen name="profile/info" options={{ animation: 'fade' }} />
+      </Stack>
+    </ErrorBoundary>
   );
 }

@@ -7,6 +7,18 @@ import { Star, Lock } from 'lucide-react-native';
 import { useState, useEffect } from 'react';
 import { usePetStatus } from '../src/hooks/usePet';
 import { api } from '../src/api/client';
+import { getErrorMessage } from '../src/utils/errors';
+
+interface ShopItem {
+  _id: string;
+  name: string;
+  category: string;
+  price: number;
+  requiredLevel: number;
+  owned?: boolean;
+  equipped?: boolean;
+  img?: string;
+}
 
 export default function ShopScreen() {
   const categories = [
@@ -17,7 +29,7 @@ export default function ShopScreen() {
   ];
 
   const [activeCategory, setActiveCategory] = useState('HAT');
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<ShopItem[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(true);
   
   const { data: petStatus, refetch: refetchPet } = usePetStatus();
@@ -32,15 +44,15 @@ export default function ShopScreen() {
       if (res.data.success) {
         setItems(res.data.data);
       }
-    } catch (err: any) {
-      console.error(err);
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể tải cửa hàng.'));
     } finally {
       setIsLoadingItems(false);
     }
   };
 
   useEffect(() => {
-    fetchItems();
+    void Promise.resolve().then(fetchItems);
   }, []);
 
   const handleRefresh = async () => {
@@ -54,8 +66,8 @@ export default function ShopScreen() {
         Alert.alert('Thành công', 'Mua phụ kiện thành công');
         handleRefresh();
       }
-    } catch (err: any) {
-      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể mua vật phẩm.');
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể mua vật phẩm.'));
     }
   };
 
@@ -66,8 +78,8 @@ export default function ShopScreen() {
         Alert.alert('Thành công', 'Thay đổi trang bị thành công');
         handleRefresh();
       }
-    } catch (err: any) {
-      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể trang bị vật phẩm.');
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể trang bị vật phẩm.'));
     }
   };
 

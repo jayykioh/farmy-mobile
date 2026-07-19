@@ -7,6 +7,7 @@ import { Archive, Trash2, Activity, Clock, CheckCircle2, Droplets, Leaf, Shield,
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useDiaryDetail, useDiaryLogs } from '../../src/hooks/useDiary';
 import { api } from '../../src/api/client';
+import { getErrorMessage } from '../../src/utils/errors';
 
 export default function DiaryHistoryScreen() {
   const { id } = useLocalSearchParams();
@@ -44,8 +45,8 @@ export default function DiaryHistoryScreen() {
       Alert.alert('Thành công', 'Đã lưu trữ vụ mùa.', [
         { text: 'OK', onPress: () => router.replace('/(tabs)/diary') }
       ]);
-    } catch (err: any) {
-      Alert.alert('Lỗi', err.response?.data?.message || 'Không thể lưu trữ vụ mùa.');
+    } catch (err) {
+      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể lưu trữ vụ mùa.'));
     }
   };
 
@@ -58,8 +59,8 @@ export default function DiaryHistoryScreen() {
             Alert.alert('Thành công', 'Đã xóa vụ mùa.', [
               { text: 'OK', onPress: () => router.replace('/(tabs)/diary') }
             ]);
-          } catch (err: any) {
-            Alert.alert('Lỗi', err.response?.data?.message || 'Không thể xóa vụ mùa.');
+          } catch (err) {
+            Alert.alert('Lỗi', getErrorMessage(err, 'Không thể xóa vụ mùa.'));
           }
         }
       }

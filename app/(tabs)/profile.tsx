@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -25,6 +25,13 @@ export default function ProfileScreen() {
   const xp = petStatus?.exp || 0;
   const maxXp = level * 100;
   const progress = Math.min((xp / maxXp) * 100, 100);
+  const initials = (user?.name || 'Nông dân')
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  const badgeLabel = level >= 10 ? 'Chuyên Gia' : level >= 5 ? 'Nhà Vườn' : 'Tân Binh';
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
@@ -34,22 +41,24 @@ export default function ProfileScreen() {
         
         {/* Profile Info */}
         <View style={styles.profileCard}>
-          <Image 
-            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDsbCWDiuGTF5iEwK2O9pm1CMMzFdWx0hc4ellAPSIR0Fd0W04AaUk2McKFTBpkyt54F7qbz59AxRVm00X7l_paTxXsYAhKb0DJ2UtW18iwcftc8NpvHSUtky7QtZ3LYS_Jvnwzb_uyHj7Snd_GZJ5qRjx6kGvs2Y-yZafDMesEmvqIG9HZ3b06V39xa_0py0IGkepiBfpB_L-Nfe8YfQg-4VDdxhF78xd9seUk1RNYLfCuF3wEdwSvukiK2uu0wpN98-IjRJs9NRru' }} 
-            style={styles.avatar}
-            accessibilityLabel="Ảnh đại diện người dùng"
-          />
+          {user?.avatarUrl ? (
+            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} accessibilityLabel="Ảnh đại diện người dùng" />
+          ) : (
+            <View style={styles.avatarFallback} accessibilityLabel="Ảnh đại diện người dùng">
+              <Text style={styles.avatarInitials}>{initials}</Text>
+            </View>
+          )}
           <View style={styles.profileInfo}>
             <Text style={styles.name}>{user?.name || 'Nông dân Ẩn danh'}</Text>
             <View style={styles.locationRow}>
               <MapPin size={14} color={colors.textMuted} />
-              <Text style={styles.locationText}>Mekong Delta, Vietnam</Text>
+              <Text style={styles.locationText}>{user?.location || 'Chưa thiết lập vị trí'}</Text>
             </View>
           </View>
           
           <View style={[styles.badgeOverlay, isCompact && styles.badgeOverlayCompact]}>
             <Award size={14} color="#B45309" />
-            <Text style={styles.badgeText}>Chuyên Gia</Text>
+            <Text style={styles.badgeText}>{badgeLabel}</Text>
           </View>
         </View>
 
@@ -58,7 +67,7 @@ export default function ProfileScreen() {
           <View style={[styles.xpHeader, isCompact && styles.xpHeaderCompact]}>
             <View>
               <Text style={styles.levelTitle}>Cấp độ {level}</Text>
-              <Text style={styles.levelSubtitle}>Chuyên Gia Trồng Trọt</Text>
+              <Text style={styles.levelSubtitle}>{badgeLabel} Trồng Trọt</Text>
             </View>
             <View style={[styles.xpRight, isCompact && styles.xpRightCompact]}>
               <Text style={styles.xpAmount}>{xp} XP</Text>
@@ -70,12 +79,12 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Badge Shelf */}
+        {/* Badge collection */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Badge Shelf</Text>
+            <Text style={styles.sectionTitle}>Bộ huy hiệu</Text>
             <TouchableOpacity onPress={() => router.push('/shop')} accessibilityRole="button" accessibilityLabel="Mở cửa hàng" activeOpacity={0.7}>
-              <Text style={styles.sectionLink}>Go to Shop →</Text>
+            <Text style={styles.sectionLink}>Đến cửa hàng →</Text>
             </TouchableOpacity>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgeScroll}>
@@ -83,19 +92,19 @@ export default function ProfileScreen() {
               <View style={[styles.badgeIconBg, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
                 <Medal size={28} color="#EAB308" />
               </View>
-              <Text style={styles.badgeName}>First Harvest</Text>
+              <Text style={styles.badgeName}>Thu hoạch đầu</Text>
             </View>
             <View style={styles.badgeCard}>
               <View style={[styles.badgeIconBg, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
                 <Droplets size={28} color="#3B82F6" />
               </View>
-              <Text style={styles.badgeName}>Water Saver</Text>
+              <Text style={styles.badgeName}>Tiết kiệm nước</Text>
             </View>
             <View style={styles.badgeCard}>
               <View style={[styles.badgeIconBg, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
                 <ShieldAlert size={28} color={colors.error} />
               </View>
-              <Text style={styles.badgeName}>Pest Hunter</Text>
+              <Text style={styles.badgeName}>Bắt sâu bệnh</Text>
             </View>
           </ScrollView>
         </View>
@@ -118,21 +127,21 @@ export default function ProfileScreen() {
               </View>
               <ChevronRight size={20} color={colors.borderMain} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.settingItem} activeOpacity={0.7} accessibilityRole="button">
+            <TouchableOpacity style={styles.settingItem} onPress={() => Alert.alert('Cài đặt ứng dụng', 'Màn hình cài đặt sẽ được bổ sung khi có thêm tùy chọn cấu hình.')} activeOpacity={0.7} accessibilityRole="button">
               <View style={styles.settingLeft}>
                 <View style={styles.settingIconBg}>
                   <Settings size={20} color={colors.textMain + 'B0'} />
                 </View>
-                <Text style={styles.settingText}>App Settings</Text>
+                <Text style={styles.settingText}>Cài đặt ứng dụng</Text>
               </View>
               <ChevronRight size={20} color={colors.borderMain} />
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.settingItem, styles.settingItemLast]} activeOpacity={0.7} accessibilityRole="button">
+            <TouchableOpacity style={[styles.settingItem, styles.settingItemLast]} onPress={() => Alert.alert('Hỗ trợ', 'Liên hệ nhóm Farmy để được hỗ trợ.')} activeOpacity={0.7} accessibilityRole="button">
               <View style={styles.settingLeft}>
                 <View style={styles.settingIconBg}>
                   <HelpCircle size={20} color={colors.textMain + 'B0'} />
                 </View>
-                <Text style={styles.settingText}>Help & Support</Text>
+                <Text style={styles.settingText}>Trợ giúp & hỗ trợ</Text>
               </View>
               <ChevronRight size={20} color={colors.borderMain} />
             </TouchableOpacity>
@@ -188,6 +197,22 @@ const styles = StyleSheet.create({
     borderColor: colors.bgSurface,
     backgroundColor: colors.bgSurface1,
     marginRight: 16,
+  },
+  avatarFallback: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: colors.bgSurface,
+    backgroundColor: colors.primaryLightest,
+    marginRight: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    ...typography.h3,
+    color: colors.primary,
+    fontWeight: '800',
   },
   profileInfo: {
     flex: 1,

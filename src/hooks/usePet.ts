@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 import { useAuthStore } from '../store/authStore';
+import { getErrorMessage } from '../utils/errors';
 
 export interface PetStatus {
   _id: string;
@@ -16,26 +17,29 @@ export interface PetStatus {
 export function usePetStatus() {
   const [data, setData] = useState<PetStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   const { isAuthenticated } = useAuthStore();
 
   const fetchPet = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      setData(null);
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
       const res = await api.get('/pet/status');
       setData(res.data.data);
       setError(null);
     } catch (err) {
-      console.error('Fetch pet status error', err);
-      setError(err);
+      setError(getErrorMessage(err, 'Không thể tải trạng thái Bé Thóc.'));
     } finally {
       setIsLoading(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
-    fetchPet();
+    void Promise.resolve().then(fetchPet);
   }, [fetchPet]);
 
   return { data, isLoading, error, refetch: fetchPet };

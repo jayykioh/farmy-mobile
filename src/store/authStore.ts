@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../api/client';
+import { getErrorMessage } from '../utils/errors';
+import { registerSessionExpiredHandler } from './sessionExpiry';
 
 export interface User {
   id: string;
@@ -9,6 +11,20 @@ export interface User {
   role: string;
   farmId?: string;
   onboardingCompleted?: boolean;
+  avatarUrl?: string;
+  location?: string;
+}
+
+interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+interface RegisterPayload {
+  name: string;
+  email: string;
+  password: string;
+  role?: string;
 }
 
 interface AuthState {
@@ -18,8 +34,8 @@ interface AuthState {
   checkAuth: () => Promise<void>;
   setSession: (user: User, accessToken: string) => Promise<void>;
   logout: () => Promise<void>;
-  login: (payload: any) => Promise<void>;
-  registerUser: (payload: any) => Promise<void>;
+  login: (payload: LoginPayload) => Promise<void>;
+  registerUser: (payload: RegisterPayload) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -42,8 +58,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isAuthenticated: true,
         isLoading: false,
       });
-    } catch (error) {
-      console.error('Check auth failed', error);
+    } catch {
       await AsyncStorage.removeItem('access_token');
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
@@ -55,27 +70,43 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   login: async (payload) => {
-    const { data } = await api.post('/auth/login', payload);
-    const { access_token, user } = data.data;
-    await AsyncStorage.setItem('access_token', access_token);
-    set({ user, isAuthenticated: true, isLoading: false });
+    try {
+      set({ isLoading: true });
+      const { data } = await api.post('/auth/login', payload);
+      const { access_token, user } = data.data;
+      await AsyncStorage.setItem('access_token', access_token);
+      set({ user, isAuthenticated: true, isLoading: false });
+    } catch (error) {
+      set({ user: null, isAuthenticated: false, isLoading: false });
+      throw new Error(getErrorMessage(error, 'Đăng nhập thất bại.'));
+    }
   },
 
   registerUser: async (payload) => {
-    const { data } = await api.post('/auth/register', payload);
-    const { access_token, user } = data.data;
-    await AsyncStorage.setItem('access_token', access_token);
-    set({ user, isAuthenticated: true, isLoading: false });
+    try {
+      set({ isLoading: true });
+      const { data } = await api.post('/auth/register', payload);
+      const { access_token, user } = data.data;
+      await AsyncStorage.setItem('access_token', access_token);
+      set({ user, isAuthenticated: true, isLoading: false });
+    } catch (error) {
+      set({ user: null, isAuthenticated: false, isLoading: false });
+      throw new Error(getErrorMessage(error, 'Đăng ký thất bại.'));
+    }
   },
 
   logout: async () => {
     try {
       await api.post('/auth/logout');
-    } catch (error) {
-      console.error('Logout failed', error);
+    } catch {
     } finally {
       await AsyncStorage.removeItem('access_token');
       set({ user: null, isAuthenticated: false });
     }
   },
 }));
+
+registerSessionExpiredHandler(async () => {
+  await AsyncStorage.removeItem('access_token');
+  useAuthStore.setState({ user: null, isAuthenticated: false, isLoading: false });
+});

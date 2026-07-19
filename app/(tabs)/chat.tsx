@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -10,7 +10,7 @@ import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
 import { useRouter } from 'expo-router';
 
 export default function ChatScreen() {
-  const { messages, isTyping, sendMessage } = useChat();
+  const { messages, isTyping, error, sendMessage } = useChat();
   const [input, setInput] = useState('');
   const scrollViewRef = useRef<ScrollView>(null);
   const router = useRouter();
@@ -20,6 +20,10 @@ export default function ChatScreen() {
     if (!input.trim() || isTyping) return;
     sendMessage(input.trim());
     setInput('');
+  };
+
+  const handleFeedback = (type: 'up' | 'down') => {
+    Alert.alert('Cảm ơn phản hồi', type === 'up' ? 'Farmy đã ghi nhận câu trả lời hữu ích.' : 'Farmy đã ghi nhận để cải thiện câu trả lời.');
   };
 
   return (
@@ -88,10 +92,10 @@ export default function ChatScreen() {
                 
                 {msg.role === 'assistant' && msg.content && (
                   <View style={styles.actionRow}>
-                    <TouchableOpacity style={styles.actionBtn} accessibilityRole="button" accessibilityLabel="Phản hồi hữu ích">
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleFeedback('up')} accessibilityRole="button" accessibilityLabel="Phản hồi hữu ích">
                       <ThumbsUp size={14} color={colors.textMain} />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionBtn} accessibilityRole="button" accessibilityLabel="Phản hồi chưa hữu ích">
+                    <TouchableOpacity style={styles.actionBtn} onPress={() => handleFeedback('down')} accessibilityRole="button" accessibilityLabel="Phản hồi chưa hữu ích">
                       <ThumbsDown size={14} color={colors.textMain} />
                     </TouchableOpacity>
                   </View>
@@ -103,6 +107,12 @@ export default function ChatScreen() {
           {isTyping && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
             <View style={{ padding: 10, alignSelf: 'flex-start' }}>
                <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          )}
+
+          {error && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
         </ScrollView>
@@ -314,5 +324,20 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: {
     opacity: 0.42,
+  },
+  errorBanner: {
+    alignSelf: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+    backgroundColor: colors.error + '14',
+    borderWidth: 1,
+    borderColor: colors.error + '40',
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.error,
+    fontWeight: '700',
+    textAlign: 'center',
   }
 });

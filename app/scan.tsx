@@ -3,43 +3,66 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
 import { PageHeader } from '../src/components/PageHeader';
-import { Camera, RefreshCcw, Info } from 'lucide-react-native';
+import { RefreshCcw, Info } from 'lucide-react-native';
 import { useState } from 'react';
 import { Button } from '../src/components/Button';
 import { useRouter } from 'expo-router';
 import { api } from '../src/api/client';
+import * as ImagePicker from 'expo-image-picker';
+import { getErrorMessage } from '../src/utils/errors';
 
 type ScanState = 'viewfinder' | 'analyzing' | 'result';
 
+interface PlantDiagnosis {
+  is_plant?: boolean;
+  disease?: string;
+  confidence?: number;
+  symptoms?: string[];
+  treatment?: {
+    organic?: string;
+    chemical?: string;
+    phi_warning?: string;
+  };
+  safety_alert?: string;
+}
+
 export default function ScanScreen() {
   const [scanState, setScanState] = useState<ScanState>('viewfinder');
-  const [diagnosis, setDiagnosis] = useState<any>(null);
+  const [diagnosis, setDiagnosis] = useState<PlantDiagnosis | null>(null);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
   const router = useRouter();
 
   const handleCapture = async () => {
-    setScanState('analyzing');
-    
-    // Sử dụng ảnh lá cây thật từ Unsplash để Gemini phân tích chính xác
-    const leafImageUrl = 'https://images.unsplash.com/photo-1592150621744-aca64f48394a?q=80&w=400&auto=format&fit=crop';
-    setScannedImage(leafImageUrl);
-
     try {
-      // 1. Tải ảnh về dưới dạng Blob
-      const response = await fetch(leafImageUrl);
-      const blob = await response.blob();
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Cần quyền camera', 'Farmy cần quyền camera để chụp ảnh lá cây chẩn đoán.');
+        return;
+      }
 
-      // 2. Tạo FormData
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.85,
+      });
+
+      if (result.canceled || !result.assets[0]) {
+        return;
+      }
+
+      const image = result.assets[0];
+      setScannedImage(image.uri);
+      setScanState('analyzing');
+
       const formData = new FormData();
       formData.append('crop_type', 'Lúa');
-      // React Native FormData yêu cầu object đặc biệt cho file
       formData.append('image', {
-        uri: leafImageUrl,
-        type: 'image/jpeg',
-        name: 'plant-leaf.jpg',
-      } as any);
+        uri: image.uri,
+        type: image.mimeType || 'image/jpeg',
+        name: image.fileName || 'plant-scan.jpg',
+      } as unknown as Blob);
 
-      // 3. Gọi API quét sâu bệnh
       const res = await api.post('/plant-scans', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -52,10 +75,8 @@ export default function ScanScreen() {
       } else {
         throw new Error('Không nhận được dữ liệu chẩn đoán.');
       }
-    } catch (err: any) {
-      console.error(err);
-      const errMsg = err.response?.data?.message || err.message || 'Hệ thống quét gặp sự cố.';
-      Alert.alert('Lỗi chẩn đoán', errMsg, [
+    } catch (err) {
+      Alert.alert('Lỗi chẩn đoán', getErrorMessage(err, 'Hệ thống quét gặp sự cố.'), [
         { text: 'Chụp lại', onPress: () => setScanState('viewfinder') }
       ]);
     }
@@ -150,7 +171,7 @@ export default function ScanScreen() {
             {diagnosis.symptoms && diagnosis.symptoms.length > 0 && (
               <View style={styles.symptomsBox}>
                 <Text style={styles.sectionTitle}>Triệu chứng phát hiện:</Text>
-                {diagnosis.symptoms.map((symptom: string, index: number) => (
+                {diagnosis.symptoms.map((symptom, index) => (
                   <Text key={index} style={styles.symptomItem}>• {symptom}</Text>
                 ))}
               </View>

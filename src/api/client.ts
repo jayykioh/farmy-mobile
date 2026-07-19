@@ -1,9 +1,20 @@
-import axios from 'axios';
+import { create } from 'axios';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { triggerSessionExpired } from '../store/sessionExpiry';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.203:3000/api/v1';
+const API_BASE_URL = Platform.select({
+  web: process.env.EXPO_PUBLIC_API_URL_WEB ?? process.env.EXPO_PUBLIC_API_URL,
+  android: process.env.EXPO_PUBLIC_API_URL_ANDROID ?? process.env.EXPO_PUBLIC_API_URL,
+  ios: process.env.EXPO_PUBLIC_API_URL_IOS ?? process.env.EXPO_PUBLIC_API_URL,
+  default: process.env.EXPO_PUBLIC_API_URL,
+});
 
-export const api = axios.create({
+if (!API_BASE_URL) {
+  throw new Error('Missing EXPO_PUBLIC_API_URL. Set it in your local .env file.');
+}
+
+export const api = create({
   baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
@@ -17,17 +28,19 @@ api.interceptors.request.use(async (config) => {
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-  } catch (error) {
-    console.error('Error reading access token from AsyncStorage', error);
+  } catch {
   }
   return config;
 });
 
-// Response interceptor to handle token refresh could be added here
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Handle 401 and refresh token logic here in the future
+    if (error?.response?.status === 401) {
+      await AsyncStorage.removeItem('access_token');
+      await triggerSessionExpired();
+    }
+
     return Promise.reject(error);
   }
 );

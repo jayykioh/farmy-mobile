@@ -7,13 +7,14 @@ import { useAuthStore } from '../../src/store/authStore';
 import { api } from '../../src/api/client';
 import { Button } from '../../src/components/Button';
 import { Input } from '../../src/components/Input';
-import { Mail, Lock } from 'lucide-react-native';
+import { Mail, Lock, Sparkles, Leaf, ArrowRight } from 'lucide-react-native';
 import { PageHeader } from '../../src/components/PageHeader';
 import { useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import { Sparkles, Leaf, ArrowRight } from 'lucide-react-native';
 import { goBackOrReplace } from '../../src/utils/navigation';
+import { getErrorMessage } from '../../src/utils/errors';
+import { getAccessTokenFromUrl } from '../../src/utils/oauth';
 
 // Đăng ký WebBrowser
 WebBrowser.maybeCompleteAuthSession();
@@ -39,9 +40,8 @@ export default function LoginScreen() {
       } else {
         router.replace('/(tabs)/home');
       }
-    } catch (error: any) {
-      console.error(error);
-      Alert.alert('Lỗi đăng nhập', error.response?.data?.message || 'Không thể đăng nhập. Vui lòng kiểm tra lại thông tin.');
+    } catch (error) {
+      Alert.alert('Lỗi đăng nhập', getErrorMessage(error, 'Không thể đăng nhập. Vui lòng kiểm tra lại thông tin.'));
     } finally {
       setLoading(false);
     }
@@ -52,20 +52,24 @@ export default function LoginScreen() {
       setLoading(true);
       // Tạo link callback động (exp://... nếu chạy qua Expo Go, farmy://... nếu chạy standalone)
       const redirectUrl = Linking.createURL('oauth-callback');
-      console.log('Dynamic redirect URL:', redirectUrl);
-      
-      const authUrl = `${api.defaults.baseURL}/auth/google?state=${encodeURIComponent(redirectUrl)}`;
+      const query = new URLSearchParams({
+        state: redirectUrl,
+        redirect_uri: redirectUrl,
+        returnTo: redirectUrl,
+      });
+      const authUrl = `${api.defaults.baseURL}/auth/google?${query.toString()}`;
       
       // Sử dụng openAuthSessionAsync để trình duyệt tự động đóng lại khi nhận link redirect
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
       
       if (result.type === 'success' && result.url) {
-        const { queryParams } = Linking.parse(result.url);
-        if (queryParams?.accessToken) {
-          const token = queryParams.accessToken as string;
-          // Thiết lập tạm thời Authorization header để gọi API auth/me
-          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          const response = await api.get('/auth/me');
+        const token = getAccessTokenFromUrl(result.url);
+        if (token) {
+          const response = await api.get('/auth/me', {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
           const user = response.data.data;
           
           await setSession(user, token);
@@ -74,11 +78,14 @@ export default function LoginScreen() {
           } else {
             router.replace('/(tabs)/home');
           }
+        } else {
+          Alert.alert('Lỗi', 'Backend chưa redirect access token về app mobile. Hãy kiểm tra FRONTEND_URL hoặc callback OAuth trên backend.');
         }
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
+        Alert.alert('Đăng nhập bị hủy', 'Bạn đã đóng trình duyệt trước khi hoàn tất đăng nhập Google.');
       }
-    } catch (error: any) {
-      console.error(error);
-      Alert.alert('Lỗi', 'Không thể mở trình duyệt đăng nhập Google.');
+    } catch (error) {
+      Alert.alert('Lỗi', getErrorMessage(error, 'Không thể mở trình duyệt đăng nhập Google.'));
     } finally {
       setLoading(false);
     }
