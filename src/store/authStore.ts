@@ -67,7 +67,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false,
       });
     } catch (error) {
-      console.error('Check auth failed', error);
+      console.warn('Check auth failed (token expired/invalid), redirecting to login');
       await AsyncStorage.removeItem('access_token');
       set({ user: null, isAuthenticated: false, isLoading: false });
     }

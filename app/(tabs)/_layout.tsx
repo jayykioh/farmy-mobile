@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, BookText, Bot, User } from 'lucide-react-native';
+import { Home, BookText, Bot, User, Sparkles } from 'lucide-react-native';
 import { colors } from '../../src/theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -50,6 +50,13 @@ export default function TabLayout() {
         options={{
           title: 'Nhật ký',
           tabBarIcon: ({ color }) => <BookText color={color} size={24} />
+        }} 
+      />
+      <Tabs.Screen 
+        name="insight" 
+        options={{
+          title: 'Phân tích',
+          tabBarIcon: ({ color }) => <Sparkles color={color} size={24} />
         }} 
       />
       <Tabs.Screen 
