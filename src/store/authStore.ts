@@ -13,8 +13,6 @@ export interface User {
   avatarUrl?: string;
   location?: string;
   onboardingCompleted?: boolean;
-  avatarUrl?: string;
-  location?: string;
 }
 
 interface LoginPayload {

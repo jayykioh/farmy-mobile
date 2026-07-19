@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -77,15 +77,6 @@ export default function DiaryHistoryScreen() {
       case 'fertilizer': return '#ECFDF5';
       case 'pest': return '#FFF7ED';
       default: return colors.primary + '15';
-    }
-  };
-
-  const getActivityLabel = (type: string) => {
-    switch(type) {
-      case 'water': return 'Tưới nước';
-      case 'fertilizer': return 'Bón phân';
-      case 'pest': return 'Phun thuốc';
-      default: return 'Hoạt động khác';
     }
   };
 

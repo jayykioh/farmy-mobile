@@ -20,17 +20,6 @@ interface ShopItem {
   img?: string;
 }
 
-type ShopItem = {
-  _id: string;
-  name: string;
-  category: string;
-  price?: number;
-  requiredLevel?: number;
-  img?: string;
-  owned?: boolean;
-  equipped?: boolean;
-};
-
 export default function ShopScreen() {
   const categories = [
     { id: 'HAT', label: 'Mũ' },
