@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, ActivityIndicator, DeviceEventEmitter, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../../src/theme/typography';
 import { colors } from '../../src/theme/colors';
@@ -8,6 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useDiaryDetail, useDiaryLogs } from '../../src/hooks/useDiary';
 import { api } from '../../src/api/client';
 import { getErrorMessage } from '../../src/utils/errors';
+import { useEffect } from 'react';
 
 export default function DiaryHistoryScreen() {
   const { id } = useLocalSearchParams();
@@ -16,6 +17,14 @@ export default function DiaryHistoryScreen() {
   
   const { data: diary, isLoading: diaryLoading, refetch: refetchDiary } = useDiaryDetail(diaryId || '');
   const { data: logs = [], isLoading: logsLoading, refetch: refetchLogs } = useDiaryLogs(diaryId || '');
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('diary_updated', () => {
+      refetchDiary();
+      refetchLogs();
+    });
+    return () => sub.remove();
+  }, [refetchDiary, refetchLogs]);
 
   const sortedLogs = [...logs].sort((a, b) => {
     const left = new Date(a.created_at || 0).getTime();

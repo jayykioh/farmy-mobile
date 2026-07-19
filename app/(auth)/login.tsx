@@ -48,6 +48,7 @@ export default function LoginScreen() {
   };
 
   const handleGoogleLogin = async () => {
+    let authSessionResult;
     try {
       setLoading(true);
       // Tạo link callback động (exp://... nếu chạy qua Expo Go, farmy://... nếu chạy standalone)
@@ -60,32 +61,38 @@ export default function LoginScreen() {
       const authUrl = `${api.defaults.baseURL}/auth/google?${query.toString()}`;
       
       // Sử dụng openAuthSessionAsync để trình duyệt tự động đóng lại khi nhận link redirect
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
-      
-      if (result.type === 'success' && result.url) {
-        const token = getAccessTokenFromUrl(result.url);
+      authSessionResult = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+    } catch (error) {
+      Alert.alert('Lỗi kết nối', 'Không thể mở trình duyệt đăng nhập Google. Vui lòng kiểm tra lại.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      if (authSessionResult.type === 'success' && authSessionResult.url) {
+        const token = getAccessTokenFromUrl(authSessionResult.url);
         if (token) {
           const response = await api.get('/auth/me', {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           });
-          const user = response.data.data;
+          const rawUser = response.data.data?.user ?? response.data.data;
           
-          await setSession(user, token);
-          if (user && !user.onboardingCompleted) {
+          await setSession(rawUser, token);
+          if (rawUser && !rawUser.onboardingCompleted) {
             router.replace('/(auth)/onboarding-1');
           } else {
             router.replace('/(tabs)/home');
           }
         } else {
-          Alert.alert('Lỗi', 'Backend chưa redirect access token về app mobile. Hãy kiểm tra FRONTEND_URL hoặc callback OAuth trên backend.');
+          Alert.alert('Lỗi xác thực', 'Không tìm thấy access token trong phản hồi xác thực.');
         }
-      } else if (result.type === 'cancel' || result.type === 'dismiss') {
-        Alert.alert('Đăng nhập bị hủy', 'Bạn đã đóng trình duyệt trước khi hoàn tất đăng nhập Google.');
+      } else if (authSessionResult.type === 'cancel' || authSessionResult.type === 'dismiss') {
+        Alert.alert('Đăng nhập bị hủy', 'Bạn đã hủy luồng đăng nhập Google.');
       }
     } catch (error) {
-      Alert.alert('Lỗi', getErrorMessage(error, 'Không thể mở trình duyệt đăng nhập Google.'));
+      Alert.alert('Lỗi kết nối', 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng.');
     } finally {
       setLoading(false);
     }

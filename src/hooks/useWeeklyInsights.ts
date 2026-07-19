@@ -39,7 +39,7 @@ export function useWeeklyInsights(limit: number = 5) {
   }, [isAuthenticated, loadInsights]);
 
   useEffect(() => {
-    loadInsights();
+    void Promise.resolve().then(loadInsights);
   }, [loadInsights]);
 
   return {

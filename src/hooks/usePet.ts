@@ -1,46 +1,30 @@
-import { useState, useEffect, useCallback } from 'react';
-import { api } from '../api/client';
+import { useEffect } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import { useAuthStore } from '../store/authStore';
-import { getErrorMessage } from '../utils/errors';
+import { usePetStore, type PetStatus } from '../store/petStore';
 
-export interface PetStatus {
-  _id: string;
-  user_id: string;
-  exp: number;
-  level: number;
-  mood: 'happy' | 'neutral' | 'sad';
-  last_interaction_at?: string;
-  ownedItems: string[];
-  equippedItems: string[];
-}
+export type { PetStatus };
 
 export function usePetStatus() {
-  const [data, setData] = useState<PetStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { isAuthenticated } = useAuthStore();
-
-  const fetchPet = useCallback(async () => {
-    if (!isAuthenticated) {
-      setData(null);
-      setIsLoading(false);
-      return;
-    }
-    try {
-      setIsLoading(true);
-      const res = await api.get('/pet/status');
-      setData(res.data.data);
-      setError(null);
-    } catch (err) {
-      setError(getErrorMessage(err, 'Không thể tải trạng thái Bé Thóc.'));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isAuthenticated]);
+  const { data, isLoading, error, fetchPet } = usePetStore();
 
   useEffect(() => {
-    void Promise.resolve().then(fetchPet);
-  }, [fetchPet]);
+    if (!isAuthenticated) {
+      usePetStore.getState().setData(null);
+    } else {
+      void fetchPet();
+    }
+  }, [isAuthenticated, fetchPet]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const sub = DeviceEventEmitter.addListener('pet_updated', () => {
+      void fetchPet();
+    });
+    return () => sub.remove();
+  }, [isAuthenticated, fetchPet]);
 
   return { data, isLoading, error, refetch: fetchPet };
 }
+

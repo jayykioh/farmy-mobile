@@ -312,16 +312,16 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    gap: 12,
     marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderMain + '20',
-    paddingTop: 8,
+    alignSelf: 'flex-start',
   },
   actionBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: colors.bgMain,
-  },
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: colors.bgSurface1,
+    borderWidth: 1,
+    borderColor: colors.borderMain + '30',
+  }
 });
