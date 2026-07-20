@@ -21,8 +21,7 @@ export interface PetEquipmentItem {
   _id: string;
   name: string;
   category: string;
-  image_url?: string;
-  img?: string;
+  image_url: string;
   anchor?: PetAnchor;
 }
 

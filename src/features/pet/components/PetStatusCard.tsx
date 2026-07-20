@@ -3,15 +3,16 @@ import { AlertTriangle, Flame, Star } from 'lucide-react-native';
 import { colors } from '../../../theme/colors';
 import { typography } from '../../../theme/typography';
 import { getSafePetMood, getXpProgress, PET_MOOD_UI_MAP } from '../constants';
-import type { PetStatus } from '../types';
+import type { PetEquipmentItem, PetStatus } from '../types';
 import { PetMascot } from './PetMascot';
 
 interface PetStatusCardProps {
   status: PetStatus;
   showMascot?: boolean;
+  equippedItemsDetails?: PetEquipmentItem[];
 }
 
-export const PetStatusCard = ({ status, showMascot = true }: PetStatusCardProps) => {
+export const PetStatusCard = ({ status, showMascot = true, equippedItemsDetails }: PetStatusCardProps) => {
   const mood = getSafePetMood(status.mood);
   const ui = PET_MOOD_UI_MAP[mood];
   const maxXp = Math.max(status.level, 1) * 100;
@@ -21,7 +22,7 @@ export const PetStatusCard = ({ status, showMascot = true }: PetStatusCardProps)
     <View style={styles.card} accessibilityLabel="Trạng thái Bé Thóc">
       {showMascot ? (
         <View style={styles.mascotArea}>
-          <PetMascot status={status} size={132} showBubble />
+          <PetMascot status={status} size={132} showBubble equippedItemsDetails={equippedItemsDetails} />
         </View>
       ) : null}
 

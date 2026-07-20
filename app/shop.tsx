@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { typography } from '../src/theme/typography';
 import { colors } from '../src/theme/colors';
@@ -6,30 +6,18 @@ import { PageHeader } from '../src/components/PageHeader';
 import { Star, Lock } from 'lucide-react-native';
 import { useState, useEffect } from 'react';
 import { usePetStatus } from '../src/hooks/usePet';
-import { api } from '../src/api/client';
 import { getErrorMessage } from '../src/utils/errors';
 import { PetMascot } from '../src/features/pet/components/PetMascot';
-import type { PetAnchor, PetEquipmentItem } from '../src/features/pet/types';
+import { ShopItemImage } from '../src/features/shop/components/ShopItemImage';
+import { buyShopItem, fetchShopItems, toggleEquipShopItem } from '../src/features/shop/api';
+import type { ShopItem, ShopItemViewModel } from '../src/features/shop/types';
+import type { PetEquipmentItem } from '../src/features/pet/types';
 
-interface ShopItem {
-  _id: string;
-  name: string;
-  category: string;
-  price?: number;
-  requiredLevel?: number;
-  owned?: boolean;
-  equipped?: boolean;
-  img?: string;
-  image_url?: string;
-  anchor?: PetAnchor;
-}
-
-const toPetEquipmentItem = (item: ShopItem): PetEquipmentItem => ({
+const toPetEquipmentItem = (item: ShopItemViewModel): PetEquipmentItem => ({
   _id: item._id,
   name: item.name,
   category: item.category,
-  image_url: item.image_url ?? item.img,
-  img: item.img,
+  image_url: item.image_url,
   anchor: item.anchor,
 });
 
@@ -55,12 +43,10 @@ export default function ShopScreen() {
   const fetchItems = async () => {
     try {
       setIsLoadingItems(true);
-      const res = await api.get('/shop/items');
-      if (res.data.success) {
-        setItems(res.data.data);
-        setItemsError(null);
-      }
+      setItems(await fetchShopItems());
+      setItemsError(null);
     } catch (err) {
+      setItemsError(getErrorMessage(err, 'Không thể tải cửa hàng.'));
       Alert.alert('Lỗi', getErrorMessage(err, 'Không thể tải cửa hàng.'));
     } finally {
       setIsLoadingItems(false);
@@ -78,8 +64,8 @@ export default function ShopScreen() {
   const handleBuy = async (itemId: string) => {
     try {
       setPendingItemId(itemId);
-      const res = await api.post('/shop/buy', { itemId });
-      if (res.data.success) {
+      const res = await buyShopItem(itemId);
+      if (res.success) {
         Alert.alert('Thành công', 'Mua phụ kiện thành công');
         await handleRefresh();
       }
@@ -93,8 +79,8 @@ export default function ShopScreen() {
   const handleEquip = async (itemId: string) => {
     try {
       setPendingItemId(itemId);
-      const res = await api.post('/shop/equip', { itemId });
-      if (res.data.success) {
+      const res = await toggleEquipShopItem(itemId);
+      if (res.success) {
         Alert.alert('Thành công', 'Thay đổi trang bị thành công');
         await handleRefresh();
       }
@@ -108,8 +94,8 @@ export default function ShopScreen() {
   const handleUnequip = async (itemId: string) => {
     try {
       setPendingItemId(itemId);
-      const res = await api.post('/shop/unequip', { itemId });
-      if (res.data.success) {
+      const res = await toggleEquipShopItem(itemId);
+      if (res.success) {
         Alert.alert('Thành công', 'Đã tháo phụ kiện khỏi Bé Thóc');
         await handleRefresh();
       }
@@ -120,16 +106,14 @@ export default function ShopScreen() {
     }
   };
 
-  const normalizedItems = items.map(item => ({
+  const normalizedItems: ShopItemViewModel[] = items.map(item => ({
     ...item,
-    price: item.price ?? 0,
-    requiredLevel: item.requiredLevel ?? 1,
-    owned: item.owned || petStatus?.ownedItems?.includes(item._id),
-    equipped: item.equipped || petStatus?.equippedItems?.includes(item._id),
+    owned: petStatus?.ownedItems?.includes(item._id) ?? false,
+    equipped: petStatus?.equippedItems?.includes(item._id) ?? false,
   }));
   const filteredItems = normalizedItems
     .filter(item => item.category === activeCategory)
-    .sort((a, b) => (a.requiredLevel || 1) - (b.requiredLevel || 1) || (a.price || 0) - (b.price || 0) || a.name.localeCompare(b.name));
+    .sort((a, b) => a.required_level - b.required_level || a.price - b.price || a.name.localeCompare(b.name));
   const equippedItems = normalizedItems.filter(item => item.equipped);
   const equippedItem = equippedItems[0];
 
@@ -201,23 +185,23 @@ export default function ShopScreen() {
         ) : (
           <View style={styles.gridContainer}>
             {filteredItems.map(item => {
-              const isLocked = level < (item.requiredLevel || 1);
-              const canAfford = xp >= (item.price || 0);
+              const isLocked = level < item.required_level;
+              const canAfford = xp >= item.price;
               const isPending = pendingItemId === item._id;
 
               return (
                 <View key={item._id} style={[styles.itemCard, item.equipped ? styles.itemCardEquipped : null]}>
                   <View style={styles.itemImageContainer}>
                     {!isLocked ? (
-                      item.img ? (
-                        <Image source={{ uri: item.img }} style={styles.itemImage} />
+                      item.image_url ? (
+                        <ShopItemImage imageUrl={item.image_url} name={item.name} style={styles.itemImage} />
                       ) : (
                         <Text style={{ fontSize: 40 }}>👑</Text>
                       )
                     ) : (
                       <View style={styles.lockedContainer}>
                         <Lock size={24} color={colors.borderMain} />
-                         <Text style={styles.lockedText}>Cấp {item.requiredLevel || 1}</Text>
+                         <Text style={styles.lockedText}>Cấp {item.required_level}</Text>
                       </View>
                     )}
                   </View>
@@ -226,7 +210,7 @@ export default function ShopScreen() {
                   
                   <View style={styles.priceTag}>
                     <Star size={12} color="#EAB308" fill="#EAB308" />
-                    <Text style={styles.priceText}>{item.price || 0}</Text>
+                    <Text style={styles.priceText}>{item.price}</Text>
                   </View>
 
                   {item.equipped ? (

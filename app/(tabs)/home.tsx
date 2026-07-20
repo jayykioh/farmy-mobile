@@ -10,20 +10,27 @@ import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
 import { WeeklyInsightsSection } from '../../src/components/WeeklyInsightsSection';
 import { PetStatusCard } from '../../src/features/pet/components/PetStatusCard';
 import { PET_STATUS_FALLBACK } from '../../src/features/pet/types';
+import { useShopItems } from '../../src/features/shop/hooks/useShopItems';
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
   const { data: petStatus, isLoading: petLoading, refetch: refetchPet } = usePetStatus();
+  const { items: shopItems, refetch: refetchShopItems } = useShopItems();
   const router = useRouter();
   const { gutter, contentMaxWidth, isCompact } = useResponsiveLayout();
   const status = petStatus ?? PET_STATUS_FALLBACK;
+  const equippedItemsDetails = shopItems.filter(item => status.equippedItems.includes(item._id));
+
+  const handleRefresh = async () => {
+    await Promise.all([refetchPet(), refetchShopItems()]);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView 
         contentContainerStyle={[styles.scrollContent, { paddingHorizontal: gutter, maxWidth: contentMaxWidth }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={petLoading} onRefresh={refetchPet} />}
+        refreshControl={<RefreshControl refreshing={petLoading} onRefresh={handleRefresh} />}
       >
         
         {/* Header Section */}
@@ -40,7 +47,7 @@ export default function HomeScreen() {
 
         {/* Mascot Card */}
         <View style={styles.mascotCardWrap}>
-          <PetStatusCard status={status} />
+          <PetStatusCard status={status} equippedItemsDetails={equippedItemsDetails} />
         </View>
 
         {/* Quick Actions */}

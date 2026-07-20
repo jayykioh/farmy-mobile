@@ -1,5 +1,6 @@
-import { Image, StyleSheet, View, type DimensionValue, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type DimensionValue, type StyleProp, type ViewStyle } from 'react-native';
 import { SvgXml } from 'react-native-svg';
+import { ShopItemImage } from '../../shop/components/ShopItemImage';
 import { getMascotSvgXml, getSafePetMood, PET_MOOD_UI_MAP, resolveAnchor, sortByLayer } from '../constants';
 import type { PetEquipmentItem, PetMood, PetStatus } from '../types';
 import { PetMoodBubble } from './PetMoodBubble';
@@ -19,7 +20,7 @@ const parsePercent = (value: string): number => {
 };
 
 const getEquipmentImageUri = (item: PetEquipmentItem): string | undefined => {
-  return item.image_url || item.img;
+  return item.image_url;
 };
 
 const getLayerStyle = (item: PetEquipmentItem, size: number): ViewStyle => {
@@ -63,7 +64,7 @@ export const PetMascot = ({
 
           return (
             <View key={item._id} style={getLayerStyle(item, size)}>
-              <Image source={{ uri: imageUri }} style={styles.equipmentImage as ImageStyle} resizeMode="contain" accessibilityLabel={item.name} />
+              <ShopItemImage imageUrl={imageUri} name={item.name} style={styles.equipmentImage} />
             </View>
           );
         })}

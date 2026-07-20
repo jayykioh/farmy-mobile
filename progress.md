@@ -16,3 +16,12 @@
 - Renamed `src/features/pet/pet.constants.ts` to `src/features/pet/constants.ts` and updated all imports.
 - Removed deprecated `pointerEvents` prop from the new mascot equipment layer and replaced new `shadow*` style props with `boxShadow` in the new pet components.
 - Re-ran `npm run typecheck`; it passed. Grep confirmed no remaining `pet.constants` imports.
+- Rechecked backend pet/shop controllers and services against farmy-fe and mobile.
+- Fixed mobile shop route mismatch: unequip now uses backend toggle route `/shop/equip` instead of nonexistent `/shop/unequip`.
+- Fixed mobile shop field mismatch: uses backend `required_level` and `image_url` instead of `requiredLevel` and `img`.
+- Added `src/features/shop` mobile helpers for backend shop API, shop item types, SVG XML assets copied from `farmy-fe/public/shop`, and a shared `ShopItemImage` renderer.
+- Updated Home to hydrate equipped item details from `/shop/items`, matching web mascot behavior.
+- Ran backend `npm run build`; it passed.
+- Ran backend `npm test -- pet.service.spec.ts`; 11 tests passed.
+- Ran mobile `npm run typecheck`; it passed.
+- Confirmed mobile API route grep only finds `/pet/status`, `/shop/items`, `/shop/buy`, and `/shop/equip`.
