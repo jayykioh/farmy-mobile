@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ComponentRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -13,6 +13,24 @@ import { Button } from '../src/components/Button';
 import { getErrorMessage } from '../src/utils/errors';
 
 type ScanState = 'viewfinder' | 'analyzing' | 'result';
+type CameraFacing = 'back' | 'front';
+
+type PlantScanErrorCode =
+  | 'SCAN_INVALID_FILE'
+  | 'SCAN_INVALID_INPUT'
+  | 'SCAN_IMAGE_BLURRY'
+  | 'SCAN_QUOTA_EXCEEDED'
+  | 'AI_SCAN_QUOTA_BUSY'
+  | 'NOT_A_PLANT_IMAGE'
+  | 'PLANT_SCAN_PERSISTENCE_FAILED'
+  | 'SCAN_NOT_FOUND'
+  | 'INVALID_IMAGE_TYPE'
+  | 'INVALID_JSON'
+  | 'INVALID_SCHEMA'
+  | 'LLM_ERROR'
+  | 'UNKNOWN';
+
+const CROP_OPTIONS = ['Lúa', 'Bưởi', 'Cà phê'];
 
 interface PlantDiagnosis {
   is_plant?: boolean;
@@ -24,13 +42,65 @@ interface PlantDiagnosis {
     organic?: string;
     chemical?: string;
     phi_warning?: string;
+    safety_alert?: string;
   };
+  low_confidence_warning?: string;
+  disclaimer?: string;
   safety_alert?: string;
 }
 
-const normalizeDiagnosis = (data: any): PlantDiagnosis | null => data?.data?.diagnosis ?? data?.diagnosis ?? data?.data ?? null;
+interface PlantScanResult {
+  scan_id?: string;
+  status?: 'completed' | 'cached';
+  crop_type?: string;
+  diagnosis?: PlantDiagnosis;
+  image_url?: string;
+  thumbnail_url?: string;
+  cache_hit_from_scan_id?: string | null;
+}
 
-const toFormData = async (uri: string, name: string, type = 'image/jpeg') => {
+const normalizeScanResult = (data: any): PlantScanResult | null => {
+  const raw = data?.data ?? data;
+  if (!raw) return null;
+  if (raw.diagnosis || raw.scan_id || raw.image_url || raw.thumbnail_url) return raw as PlantScanResult;
+  return { diagnosis: raw as PlantDiagnosis };
+};
+
+const extractPlantScanErrorCode = (error: unknown): PlantScanErrorCode => {
+  const response = (error as { response?: { status?: number; data?: { errorCode?: string; error_code?: string } } })?.response;
+  const errorCode = response?.data?.errorCode ?? response?.data?.error_code;
+  if (errorCode) return errorCode as PlantScanErrorCode;
+  if (response?.status === 429) return 'SCAN_QUOTA_EXCEEDED';
+  if (response?.status === 422) return 'NOT_A_PLANT_IMAGE';
+  return 'UNKNOWN';
+};
+
+const getPlantScanErrorMessage = (error: unknown) => {
+  switch (extractPlantScanErrorCode(error)) {
+    case 'SCAN_IMAGE_BLURRY':
+      return 'Ảnh quá mờ. Hãy giữ chắc tay, đưa lá vào khung rồi chụp lại.';
+    case 'NOT_A_PLANT_IMAGE':
+      return 'Ảnh chưa thấy cây trồng. Hãy chụp sát lá/cành bị bệnh, không chụp người hoặc cảnh phòng.';
+    case 'SCAN_QUOTA_EXCEEDED':
+      return 'Bạn đã hết lượt quét hôm nay. Hãy thử lại vào ngày mai.';
+    case 'AI_SCAN_QUOTA_BUSY':
+      return 'Hệ thống AI đang quá tải. Vui lòng đợi vài phút rồi thử lại.';
+    case 'PLANT_SCAN_PERSISTENCE_FAILED':
+      return 'Lỗi lưu trữ dữ liệu. Vui lòng thử lại.';
+    case 'SCAN_INVALID_FILE':
+    case 'INVALID_IMAGE_TYPE':
+      return 'Vui lòng tải lên file ảnh hợp lệ (JPG, PNG, WebP) dưới 5MB.';
+    case 'INVALID_JSON':
+    case 'INVALID_SCHEMA':
+      return 'Bé Thóc chưa đọc được ảnh này. Hãy thử một ảnh rõ hơn nhé.';
+    case 'SCAN_INVALID_INPUT':
+      return 'Vui lòng chọn loại cây trồng trước khi quét.';
+    default:
+      return getErrorMessage(error, 'Có lỗi xảy ra trong quá trình quét. Vui lòng thử lại.');
+  }
+};
+
+const toFormData = async (uri: string, name: string, type: string, cropType: string) => {
   const formData = new FormData();
 
   if (uri.startsWith('data:')) {
@@ -40,43 +110,49 @@ const toFormData = async (uri: string, name: string, type = 'image/jpeg') => {
     formData.append('image', { uri, type, name } as unknown as Blob);
   }
 
-  formData.append('crop_type', 'Lúa');
+  formData.append('crop_type', cropType);
   return formData;
 };
 
 export default function ScanScreen() {
   const [scanState, setScanState] = useState<ScanState>('viewfinder');
-  const [diagnosis, setDiagnosis] = useState<PlantDiagnosis | null>(null);
+  const [scanResult, setScanResult] = useState<PlantScanResult | null>(null);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedCrop, setSelectedCrop] = useState(CROP_OPTIONS[0]);
+  const [cameraFacing, setCameraFacing] = useState<CameraFacing>('back');
   const [permission, requestPermission] = useCameraPermissions();
-  const cameraRef = useRef<any>(null);
+  const cameraRef = useRef<ComponentRef<typeof CameraView> | null>(null);
   const router = useRouter();
 
   const submitScan = async (uri: string, name: string, type?: string) => {
     setScannedImage(uri);
     setScanState('analyzing');
 
-    const formData = await toFormData(uri, name, type);
+    const formData = await toFormData(uri, name, type || 'image/jpeg', selectedCrop);
     const res = await api.post('/plant-scans', formData, {
       timeout: 60000,
     });
 
-    const nextDiagnosis = normalizeDiagnosis(res.data);
-    if (!res.data?.success || !nextDiagnosis) {
+    const nextScanResult = normalizeScanResult(res.data);
+    if (!res.data?.success || !nextScanResult) {
       throw new Error('Không nhận được dữ liệu chẩn đoán.');
     }
 
-    setDiagnosis(nextDiagnosis);
+    setScanResult(nextScanResult);
+    setScannedImage(nextScanResult.image_url || nextScanResult.thumbnail_url || uri);
     setScanState('result');
   };
 
   const handleCapture = async () => {
-    if (!cameraRef.current) {
-      Alert.alert('Lỗi', 'Camera chưa được khởi tạo.');
+    if (isProcessing) return;
+    if (!cameraRef.current || !isCameraReady) {
+      Alert.alert('Máy ảnh chưa sẵn sàng', 'Vui lòng đợi camera khởi động xong rồi chụp lại.');
       return;
     }
 
+    setIsProcessing(true);
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.85 });
       if (!photo?.uri) {
@@ -86,11 +162,15 @@ export default function ScanScreen() {
       await submitScan(photo.uri, 'plant-scan.jpg', photo.format ? `image/${photo.format}` : 'image/jpeg');
     } catch (err) {
       setScanState('viewfinder');
-      Alert.alert('Lỗi chẩn đoán', getErrorMessage(err, 'Hệ thống quét gặp sự cố.'));
+      Alert.alert('Lỗi chẩn đoán', getPlantScanErrorMessage(err));
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handlePickImage = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -109,17 +189,40 @@ export default function ScanScreen() {
         await submitScan(asset.uri, asset.fileName || 'plant-scan.jpg', asset.mimeType || 'image/jpeg');
       }
     } catch (err) {
-      Alert.alert('Lỗi', getErrorMessage(err, 'Không thể chọn ảnh từ thư viện.'));
+      Alert.alert('Lỗi', getPlantScanErrorMessage(err));
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleRetake = () => {
-    setDiagnosis(null);
+    setScanResult(null);
     setScannedImage(null);
     setScanState('viewfinder');
   };
 
-  const diseaseName = diagnosis?.disease_name || diagnosis?.disease || 'Cây khỏe mạnh (Không phát hiện bệnh)';
+  const toggleCamera = () => {
+    setIsCameraReady(false);
+    setCameraFacing((current) => (current === 'back' ? 'front' : 'back'));
+  };
+
+  const diagnosis = scanResult?.diagnosis;
+  const confidence = diagnosis?.confidence ?? 0;
+  const isScanUncertain = !diagnosis || confidence < 0.5 || Boolean(diagnosis.low_confidence_warning);
+  const diseaseName = !diagnosis
+    ? 'Kết quả chưa sẵn sàng'
+    : diagnosis.is_plant === false
+      ? 'Ảnh không phải cây trồng'
+      : diagnosis.disease_name && !isScanUncertain
+        ? diagnosis.disease_name
+        : diagnosis.disease || 'Cần kiểm tra thêm';
+  const mascotMessage = !diagnosis
+    ? 'Bé Thóc đang xem xét lá cây.'
+    : diagnosis.is_plant === false
+      ? 'Đây có vẻ chưa phải cây trồng.'
+      : isScanUncertain
+        ? 'Ảnh này chưa đủ chắc chắn, cần kiểm tra thêm.'
+        : 'Mình đã thấy dấu hiệu rõ hơn rồi.';
   const confidencePercent = typeof diagnosis?.confidence === 'number'
     ? Math.max(0, Math.min(100, Math.round(diagnosis.confidence * 100)))
     : null;
@@ -144,17 +247,36 @@ export default function ScanScreen() {
               <CameraView
                 ref={cameraRef}
                 style={styles.cameraPreview}
-                facing="back"
+                facing={cameraFacing}
                 onCameraReady={() => setIsCameraReady(true)}
                 onMountError={() => setIsCameraReady(false)}
               />
+              <View style={styles.topOverlay}>
+                <View style={styles.cropSelector}>
+                  {CROP_OPTIONS.map((crop) => (
+                    <TouchableOpacity
+                      key={crop}
+                      style={[styles.cropChip, selectedCrop === crop && styles.cropChipActive]}
+                      onPress={() => setSelectedCrop(crop)}
+                      disabled={isProcessing}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: selectedCrop === crop }}
+                    >
+                      <Text style={[styles.cropChipText, selectedCrop === crop && styles.cropChipTextActive]}>{crop}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity style={styles.flipBtn} onPress={toggleCamera} disabled={isProcessing} accessibilityRole="button">
+                  <RefreshCcw size={18} color="#FFF" />
+                </TouchableOpacity>
+              </View>
               <View style={styles.cameraFrame} />
               <View style={styles.captureOverlay}>
-                <TouchableOpacity style={styles.galleryBtn} onPress={handlePickImage} accessibilityRole="button">
+                <TouchableOpacity style={[styles.galleryBtn, isProcessing && styles.disabledAction]} onPress={handlePickImage} disabled={isProcessing} accessibilityRole="button">
                   <Text style={styles.galleryBtnText}>Ảnh</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.captureBtn} onPress={handleCapture} accessibilityRole="button">
-                  <View style={styles.captureInner} />
+                <TouchableOpacity style={[styles.captureBtn, (!isCameraReady || isProcessing) && styles.disabledAction]} onPress={handleCapture} disabled={!isCameraReady || isProcessing} accessibilityRole="button">
+                  {isProcessing ? <ActivityIndicator color={colors.bgSurface} /> : <View style={styles.captureInner} />}
                 </TouchableOpacity>
                 <View style={styles.galleryBtnPlaceholder} />
               </View>
@@ -177,7 +299,7 @@ export default function ScanScreen() {
         </View>
       )}
 
-      {scanState === 'result' && diagnosis && (
+      {scanState === 'result' && scanResult && (
         <ScrollView contentContainerStyle={styles.resultContainer} showsVerticalScrollIndicator={false}>
           <View style={styles.previewImageContainer}>
             {scannedImage && <Image source={{ uri: scannedImage }} style={styles.previewImage} />}
@@ -189,16 +311,14 @@ export default function ScanScreen() {
             </View>
             <View style={styles.bubble}>
               <Text style={styles.bubbleText}>
-                {diagnosis.is_plant
-                  ? 'Bé Thóc đã chẩn đoán xong bệnh cho cây rồi đây!'
-                  : 'Hình ảnh này có vẻ không phải là lá cây nông nghiệp.'}
+                {mascotMessage}
               </Text>
             </View>
           </View>
 
           <View style={styles.resultCard}>
             <View style={styles.statusPill}>
-              <Text style={styles.statusText}>PHÂN TÍCH THÀNH CÔNG</Text>
+              <Text style={styles.statusText}>PHÂN TÍCH THÀNH CÔNG{scanResult.status === 'cached' ? ' (CACHE)' : ''}</Text>
             </View>
 
             <Text style={styles.diseaseName}>{diseaseName}</Text>
@@ -215,7 +335,7 @@ export default function ScanScreen() {
               </>
             )}
 
-            {diagnosis.symptoms && diagnosis.symptoms.length > 0 && (
+            {diagnosis?.symptoms && diagnosis.symptoms.length > 0 && (
               <View style={styles.symptomsBox}>
                 <Text style={styles.sectionTitle}>Triệu chứng phát hiện:</Text>
                 {diagnosis.symptoms.map((symptom, index) => (
@@ -224,7 +344,7 @@ export default function ScanScreen() {
               </View>
             )}
 
-            {diagnosis.treatment && (
+            {diagnosis?.treatment && (
               <View style={styles.treatmentBox}>
                 <Text style={styles.sectionTitle}>Giải pháp điều trị:</Text>
                 <Text style={styles.treatmentTitle}>Hữu cơ / Sinh học:</Text>
@@ -242,11 +362,22 @@ export default function ScanScreen() {
               </View>
             )}
 
-            {diagnosis.safety_alert && (
+            {(diagnosis?.safety_alert || diagnosis?.treatment?.safety_alert) && (
               <View style={[styles.warningBox, { marginTop: 16 }]}> 
                 <Info size={16} color="#9A3412" />
-                <Text style={styles.warningText}>{diagnosis.safety_alert}</Text>
+                <Text style={styles.warningText}>{diagnosis?.safety_alert || diagnosis?.treatment?.safety_alert}</Text>
               </View>
+            )}
+
+            {diagnosis?.low_confidence_warning && (
+              <View style={[styles.warningBox, { marginTop: 16 }]}> 
+                <Info size={16} color="#9A3412" />
+                <Text style={styles.warningText}>{diagnosis.low_confidence_warning}</Text>
+              </View>
+            )}
+
+            {diagnosis?.disclaimer && (
+              <Text style={styles.disclaimerText}>* {diagnosis.disclaimer}</Text>
             )}
           </View>
 
@@ -304,6 +435,53 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  topOverlay: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    right: 16,
+    zIndex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  cropSelector: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  cropChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  cropChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  cropChipText: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  cropChipTextActive: {
+    color: colors.bgSurface,
+  },
+  flipBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   cameraFrame: {
     ...StyleSheet.absoluteFill,
     borderWidth: 2,
@@ -347,6 +525,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  disabledAction: {
+    opacity: 0.5,
   },
   captureInner: {
     width: 64,
@@ -545,6 +726,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#9A3412',
     lineHeight: 20,
+  },
+  disclaimerText: {
+    ...typography.caption,
+    color: colors.textMain + '80',
+    fontStyle: 'italic',
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderMain + '30',
   },
   actionButtons: {
     paddingHorizontal: 8,

@@ -13,26 +13,25 @@ import { usePetStatus } from '../src/hooks/usePet';
 interface ReminderItem {
   _id: string;
   title: string;
-  scheduled_at: string;
-  status: 'pending' | 'completed' | 'cancelled';
-  frequency?: 'none' | 'daily' | 'weekly' | 'monthly';
+  remind_at: string;
+  status: 'pending' | 'delivered' | 'completed' | 'failed' | 'cancelled';
+  repeat?: ReminderFrequency;
   type?: ReminderType;
 }
 
-type ReminderType = 'water' | 'fertilizer' | 'pest';
-type ReminderFrequency = 'none' | 'daily' | 'weekly' | 'monthly';
+type ReminderType = 'water' | 'fertilize' | 'plant_alert';
+type ReminderFrequency = 'none' | 'daily' | 'weekly';
 
 const reminderTypes: { id: ReminderType; label: string }[] = [
   { id: 'water', label: 'Tưới nước' },
-  { id: 'fertilizer', label: 'Bón phân' },
-  { id: 'pest', label: 'Trừ sâu' },
+  { id: 'fertilize', label: 'Bón phân' },
+  { id: 'plant_alert', label: 'Trừ sâu' },
 ];
 
 const reminderFrequencies: { id: ReminderFrequency; label: string }[] = [
   { id: 'none', label: 'Không lặp lại' },
   { id: 'daily', label: 'Hàng ngày' },
   { id: 'weekly', label: 'Hàng tuần' },
-  { id: 'monthly', label: 'Hàng tháng' },
 ];
 
 const getTodayDateInput = () => new Date().toISOString().slice(0, 10);
@@ -46,8 +45,8 @@ const getReminderTypeLabel = (type?: ReminderType) => reminderTypes.find(item =>
 
 const getReminderTypeIcon = (type?: ReminderType) => {
   switch (type) {
-    case 'fertilizer': return <FlaskConical size={24} color="#10B981" />;
-    case 'pest': return <BugOff size={24} color="#F97316" />;
+    case 'fertilize': return <FlaskConical size={24} color="#10B981" />;
+    case 'plant_alert': return <BugOff size={24} color="#F97316" />;
     default: return <Droplets size={24} color="#3B82F6" />;
   }
 };
@@ -140,10 +139,10 @@ export default function RemindersScreen() {
       setIsSubmitting(true);
       const res = await api.post('/reminders', {
         title: title.trim(),
-        description: description.trim(),
-        scheduled_at: scheduledAtDate.toISOString(),
+        action_detail: description.trim(),
+        remind_at: scheduledAtDate.toISOString(),
         type: reminderType,
-        frequency,
+        repeat: frequency,
       });
       if (res.data.success) {
         Alert.alert('Thành công', 'Đã tạo nhắc nhở mới!');
@@ -154,7 +153,7 @@ export default function RemindersScreen() {
         setScheduledTime(getDefaultTimeInput());
         setReminderType('water');
         setFrequency('daily');
-        fetchReminders();
+        await fetchReminders();
       }
     } catch (err) {
       Alert.alert('Lỗi', getErrorMessage(err, 'Không thể tạo nhắc nhở.'));
@@ -165,7 +164,7 @@ export default function RemindersScreen() {
 
   const upcomingReminders = reminders
     .filter(item => item.status === 'pending')
-    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+    .sort((a, b) => new Date(a.remind_at).getTime() - new Date(b.remind_at).getTime());
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
@@ -202,7 +201,7 @@ export default function RemindersScreen() {
           <View style={styles.listContainer}>
             {upcomingReminders.map(item => {
               const isPending = pendingReminderId === item._id;
-              const isOverdue = new Date(item.scheduled_at).getTime() < now;
+              const isOverdue = new Date(item.remind_at).getTime() < now;
               return (
               <View key={item._id} style={styles.reminderCard}>
                 <View style={styles.iconContainer}>
@@ -213,7 +212,7 @@ export default function RemindersScreen() {
                   <Text style={styles.reminderTitle} numberOfLines={1}>{item.title}</Text>
                   <View style={styles.timeRow}>
                     <Clock size={12} color={colors.textMain + '80'} />
-                    <Text style={styles.timeText}>{new Date(item.scheduled_at).toLocaleString('vi-VN')}</Text>
+                    <Text style={styles.timeText}>{new Date(item.remind_at).toLocaleString('vi-VN')}</Text>
                   </View>
                   
                   <View style={styles.tagsRow}>
@@ -228,10 +227,10 @@ export default function RemindersScreen() {
                         <Text style={styles.tagOverdueText}>Quá hạn</Text>
                       </View>
                     )}
-                    {item.frequency && item.frequency !== 'none' && (
+                    {item.repeat && item.repeat !== 'none' && (
                       <View style={styles.tagRepeat}>
                         <Repeat size={10} color="#B45309" />
-                        <Text style={styles.tagRepeatText}>{item.frequency === 'daily' ? 'Hàng ngày' : item.frequency === 'weekly' ? 'Hàng tuần' : 'Hàng tháng'}</Text>
+                        <Text style={styles.tagRepeatText}>{item.repeat === 'daily' ? 'Hàng ngày' : 'Hàng tuần'}</Text>
                       </View>
                     )}
                   </View>

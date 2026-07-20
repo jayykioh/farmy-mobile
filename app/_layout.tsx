@@ -27,8 +27,13 @@ export default function RootLayout() {
             }
           });
           if (response.data?.success && response.data?.data) {
-            await setSession(response.data.data, accessToken, refreshToken || undefined);
-            router.replace('/(tabs)/home');
+            const userData = response.data.data;
+            await setSession(userData, accessToken, refreshToken || undefined);
+            if (userData?.role?.toLowerCase() === 'admin') {
+              router.replace('/admin');
+            } else {
+              router.replace('/(tabs)/home');
+            }
           }
         } catch {
         }
@@ -49,6 +54,7 @@ export default function RootLayout() {
     <ErrorBoundary>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="admin" options={{ animation: 'fade' }} />
         <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="scan" options={{ animation: 'fade' }} />

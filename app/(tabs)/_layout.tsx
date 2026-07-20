@@ -6,7 +6,7 @@ import { useAuthStore } from '../../src/store/authStore';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, user } = useAuthStore();
 
   if (isLoading) {
     return null;
@@ -14,6 +14,11 @@ export default function TabLayout() {
 
   if (!isAuthenticated) {
     return <Redirect href="/(auth)/welcome" />;
+  }
+
+  // Admin không được truy cập giao diện nông dân
+  if (user?.role?.toLowerCase() === 'admin') {
+    return <Redirect href="/admin" />;
   }
 
   return (
