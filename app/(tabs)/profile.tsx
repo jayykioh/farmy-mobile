@@ -6,7 +6,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useRouter } from 'expo-router';
 import { PageHeader } from '../../src/components/PageHeader';
 import { Button } from '../../src/components/Button';
-import { MapPin, Award, Medal, Droplets, ShieldAlert, User, Settings, HelpCircle, LogOut, ChevronRight } from 'lucide-react-native';
+import { MapPin, Award, Medal, Droplets, ShieldAlert, User, Settings, HelpCircle, LogOut, ChevronRight, Shield } from 'lucide-react-native';
 import { usePetStatus } from '../../src/hooks/usePet';
 import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
 
@@ -150,7 +150,7 @@ export default function ProfileScreen() {
               </View>
               <ChevronRight size={20} color={colors.borderMain} />
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.settingItem, styles.settingItemLast]} onPress={() => Alert.alert('Hỗ trợ', 'Liên hệ nhóm Farmy để được hỗ trợ.')} activeOpacity={0.7} accessibilityRole="button">
+            <TouchableOpacity style={[styles.settingItem, user?.role?.toLowerCase() !== 'admin' && styles.settingItemLast]} onPress={() => Alert.alert('Hỗ trợ', 'Liên hệ nhóm Farmy để được hỗ trợ.')} activeOpacity={0.7} accessibilityRole="button">
               <View style={styles.settingLeft}>
                 <View style={styles.settingIconBg}>
                   <HelpCircle size={20} color={colors.textMain + 'B0'} />
@@ -159,6 +159,22 @@ export default function ProfileScreen() {
               </View>
               <ChevronRight size={20} color={colors.borderMain} />
             </TouchableOpacity>
+            {user?.role?.toLowerCase() === 'admin' && (
+              <TouchableOpacity 
+                style={[styles.settingItem, styles.settingItemLast]}
+                onPress={() => router.push('/admin')}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+              >
+                <View style={styles.settingLeft}>
+                  <View style={styles.settingIconBg}>
+                    <Shield size={20} color={colors.primary} />
+                  </View>
+                  <Text style={styles.settingText}>Cổng quản trị (Admin Portal)</Text>
+                </View>
+                <ChevronRight size={20} color={colors.borderMain} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
