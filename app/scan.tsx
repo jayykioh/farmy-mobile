@@ -240,7 +240,10 @@ export default function ScanScreen() {
           ) : !permission.granted ? (
             <View style={styles.permissionState}>
               <Text style={styles.permissionText}>Farmy cần quyền camera để chụp ảnh lá cây và phân tích bằng AI.</Text>
-              <Button title="Cấp quyền máy ảnh" onPress={requestPermission} />
+              <View style={{ gap: 12, width: '100%', paddingHorizontal: 20, alignItems: 'center' }}>
+                <Button title="Cấp quyền máy ảnh" onPress={requestPermission} />
+                <Button title="Chọn ảnh từ thư viện" variant="outline" onPress={handlePickImage} disabled={isProcessing} />
+              </View>
             </View>
           ) : (
             <View style={styles.cameraBox}>
@@ -383,7 +386,19 @@ export default function ScanScreen() {
 
           <View style={styles.actionButtons}>
             <Button title="Quay lại Nhật ký" onPress={() => router.push('/(tabs)/diary')} style={{ marginBottom: 12 }} />
-            <Button title="Hỏi ý kiến Bé Thóc AI" variant="outline" onPress={() => router.push('/(tabs)/chat')} />
+            <Button
+              title="Hỏi ý kiến Bé Thóc AI"
+              variant="outline"
+              onPress={() => {
+                router.push({
+                  pathname: '/(tabs)/chat',
+                  params: {
+                    initialMessage: `Tôi muốn hỏi chi tiết về kết quả chẩn đoán: ${diseaseName}`,
+                    initialImage: scanResult?.image_url || scannedImage || '',
+                  },
+                });
+              }}
+            />
 
             <TouchableOpacity style={styles.retakeBtn} onPress={handleRetake}>
               <RefreshCcw size={16} color={colors.textMain + '80'} />
