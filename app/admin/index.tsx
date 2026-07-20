@@ -22,12 +22,14 @@ import {
   Settings, 
   Lock, 
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react-native';
 import { PageHeader } from '../../src/components/PageHeader';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
 import { getAdminStats, getAdminConfig, updateAdminConfig } from '../../src/api/admin';
+import { useAuthStore } from '../../src/store/authStore';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 type StatsOverview = {
@@ -56,10 +58,12 @@ type StatsData = {
 
 export default function AdminHubScreen() {
   const router = useRouter();
+  const logout = useAuthStore(state => state.logout);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [config, setConfig] = useState<{ maintenanceMode: boolean; rateLimit: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingConfig, setUpdatingConfig] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -94,10 +98,52 @@ export default function AdminHubScreen() {
     }
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Đăng xuất',
+      'Bạn có chắc muốn đăng xuất khỏi trang quản trị?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Đăng xuất',
+          style: 'destructive',
+          onPress: async () => {
+            setLoggingOut(true);
+            await logout();
+            router.replace('/(auth)/welcome');
+          },
+        },
+      ],
+    );
+  };
+
+  const logoutButton = (
+    <TouchableOpacity
+      style={styles.logoutButton}
+      onPress={handleLogout}
+      disabled={loggingOut}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel="Đăng xuất khỏi trang quản trị"
+      accessibilityState={{ disabled: loggingOut }}
+    >
+      {loggingOut ? (
+        <ActivityIndicator size="small" color={colors.error} />
+      ) : (
+        <LogOut size={21} color={colors.error} />
+      )}
+    </TouchableOpacity>
+  );
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <PageHeader title="Hệ thống quản trị" showBack={true} fallbackHref="/(tabs)/profile" />
+        <PageHeader
+          title="Hệ thống quản trị"
+          showBack={true}
+          fallbackHref="/(tabs)/profile"
+          rightElement={logoutButton}
+        />
         <View style={styles.spinnerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Đang tải số liệu hệ thống...</Text>
@@ -152,7 +198,12 @@ export default function AdminHubScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
-      <PageHeader title="Hệ thống quản trị" showBack={true} fallbackHref="/(tabs)/profile" />
+      <PageHeader
+        title="Hệ thống quản trị"
+        showBack={true}
+        fallbackHref="/(tabs)/profile"
+        rightElement={logoutButton}
+      />
       
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
@@ -269,6 +320,14 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 12,
     fontWeight: '600',
+  },
+  logoutButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.error + '12',
   },
   scrollContent: {
     padding: 16,

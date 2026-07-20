@@ -55,12 +55,20 @@ function SkinItem({
   onDelete: (item: ShopItemInfo) => void;
 }) {
   const [imgError, setImgError] = useState(false);
-  // Backend stores relative paths like "/shop/non-la.svg" — prefix with API base URL
-  const imageUri = item.image_url
-    ? item.image_url.startsWith('http')
-      ? item.image_url
-      : `${process.env.EXPO_PUBLIC_API_URL ?? ''}${item.image_url}`
-    : null;
+  // Backend stores relative paths like "/shop/non-la.svg".
+  // Images are served at origin level (http://host:port/shop/...), NOT under /api/v1.
+  // So we extract just the origin from the full API URL.
+  const imageUri = React.useMemo(() => {
+    if (!item.image_url) return null;
+    if (item.image_url.startsWith('http')) return item.image_url;
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? '';
+      const origin = apiUrl ? new URL(apiUrl).origin : '';
+      return `${origin}${item.image_url}`;
+    } catch {
+      return item.image_url;
+    }
+  }, [item.image_url]);
   return (
     <View style={styles.skinCard}>
       <View style={styles.skinMedia}>
