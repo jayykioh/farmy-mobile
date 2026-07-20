@@ -12,6 +12,7 @@ import { ShopItemImage } from '../../src/features/shop/components/ShopItemImage'
 import { buyShopItem, fetchShopItems, toggleEquipShopItem } from '../../src/features/shop/api';
 import type { ShopItem, ShopItemViewModel } from '../../src/features/shop/types';
 import type { PetEquipmentItem } from '../../src/features/pet/types';
+import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
 
 const toPetEquipmentItem = (item: ShopItemViewModel): PetEquipmentItem => ({
   _id: item._id,
@@ -22,6 +23,13 @@ const toPetEquipmentItem = (item: ShopItemViewModel): PetEquipmentItem => ({
 });
 
 export default function ShopScreen() {
+  const { width, isCompact, isWide, gutter } = useResponsiveLayout();
+  const gridGap = isCompact ? 10 : 12;
+  const gridWidth = Math.min(width, 760) - gutter * 2;
+  const cardWidth = isWide ? (gridWidth - gridGap * 2) / 3 : (gridWidth - gridGap) / 2;
+  const itemArtBoxSize = isCompact ? 74 : 84;
+  const mascotSize = isCompact ? 116 : 128;
+
   const categories = [
     { id: 'HAT', label: 'Mũ' },
     { id: 'OUTFIT', label: 'Trang phục' },
@@ -150,7 +158,7 @@ export default function ShopScreen() {
       </View>
 
       <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: gutter }]} 
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isLoadingItems} onRefresh={handleRefresh} />}
       >
@@ -161,7 +169,7 @@ export default function ShopScreen() {
           <View style={styles.previewBox}>
             <PetMascot
               status={petStatus}
-              size={140}
+              size={mascotSize}
               equippedItemsDetails={equippedItems.map(toPetEquipmentItem)}
             />
           </View>
@@ -183,15 +191,15 @@ export default function ShopScreen() {
         ) : filteredItems.length === 0 ? (
           <Text style={{ textAlign: 'center', marginTop: 24, color: colors.textMuted }}>Không có phụ phẩm nào thuộc mục này.</Text>
         ) : (
-          <View style={styles.gridContainer}>
+          <View style={[styles.gridContainer, { gap: gridGap }]}>
             {filteredItems.map(item => {
               const isLocked = level < item.required_level;
               const canAfford = xp >= item.price;
               const isPending = pendingItemId === item._id;
 
               return (
-                <View key={item._id} style={[styles.itemCard, item.equipped ? styles.itemCardEquipped : null]}>
-                  <View style={styles.itemImageContainer}>
+                <View key={item._id} style={[styles.itemCard, { width: cardWidth }, item.equipped ? styles.itemCardEquipped : null]}>
+                  <View style={[styles.itemImageContainer, { width: itemArtBoxSize, height: itemArtBoxSize }]}>
                     {!isLocked ? (
                       item.image_url ? (
                         <ShopItemImage imageUrl={item.image_url} name={item.name} style={styles.itemImage} />
@@ -248,34 +256,37 @@ export default function ShopScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d0e5fa',
+    backgroundColor: '#F2F2F7', // Apple system background
   },
   xpBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#FEF08A',
-    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    gap: 6,
   },
   levelPill: {
-    backgroundColor: '#FEFCE8',
+    backgroundColor: '#F2F2F7',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 10,
+    borderRadius: 8,
   },
   levelPillText: {
     fontSize: 10,
     fontWeight: '800',
-    color: '#854D0E',
+    color: '#8E8E93',
   },
   xpText: {
     fontSize: 14,
-    fontWeight: '800',
-    color: '#854D0E',
+    fontWeight: '700',
+    color: '#1C1C1E',
   },
   categoryWrapper: {
     marginBottom: 16,
@@ -286,66 +297,69 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    borderWidth: 1,
-    borderColor: colors.borderMain + '30',
+    paddingVertical: 10,
+    borderRadius: 999, // Pill shape
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   categoryChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: '#1C1C1E', // Dark mode contrast for active state
   },
   categoryText: {
     ...typography.bodySmall,
-    fontWeight: '700',
-    color: colors.textMain + 'B0',
+    fontWeight: '600',
+    color: '#8E8E93',
   },
   categoryTextActive: {
-    color: colors.bgSurface,
+    color: '#FFFFFF',
   },
   scrollContent: {
     padding: 20,
     paddingBottom: 40,
   },
   previewCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 28,
-    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32, // Squircle
+    padding: 20,
     alignItems: 'center',
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.6)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 3,
   },
   previewTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.textMain + '60',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8E8E93',
     letterSpacing: 1,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   previewBox: {
     width: '100%',
-    height: 180,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.borderMain + '20',
+    height: 160,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    paddingBottom: 24,
+    paddingBottom: 20,
     position: 'relative',
   },
   previewItemName: {
     ...typography.bodySmall,
-    fontWeight: '700',
-    color: colors.textMain,
-    marginTop: 12,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginTop: 16,
   },
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    justifyContent: 'center',
   },
   errorState: {
     alignItems: 'center',
@@ -354,118 +368,110 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.bodySmall,
-    color: colors.error,
-    fontWeight: '700',
+    color: '#FF3B30', // Apple standard red
+    fontWeight: '600',
     textAlign: 'center',
   },
   retryBtn: {
     width: 140,
   },
   itemCard: {
-    width: '47%',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24, // Squircle
     padding: 12,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderMain + '30',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 3,
   },
   itemCardEquipped: {
-    borderColor: colors.primary + '50',
-    backgroundColor: colors.primary + '05',
+    borderWidth: 2,
+    borderColor: '#1C1C1E', // Apple active outline
   },
   itemImageContainer: {
-    width: '100%',
-    aspectRatio: 1,
     borderRadius: 16,
-    backgroundColor: colors.bgSurface1,
-    borderWidth: 1,
-    borderColor: colors.borderMain + '20',
+    backgroundColor: '#F2F2F7',
     marginBottom: 12,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
   },
   itemImage: {
-    width: '80%',
-    height: '80%',
+    width: '75%',
+    height: '75%',
   },
   lockedContainer: {
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   lockedText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.borderMain,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8E8E93',
     textTransform: 'uppercase',
   },
   itemName: {
     ...typography.caption,
-    fontWeight: '700',
-    color: colors.textMain,
-    marginBottom: 4,
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginBottom: 6,
     textAlign: 'center',
   },
   priceTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEFCE8',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#FEF08A',
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
     gap: 4,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   priceText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#854D0E',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1C1C1E',
   },
   actionBtn: {
     width: '100%',
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingVertical: 10,
+    borderRadius: 999, // Pill shape
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
   },
   btnUnequip: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
+    backgroundColor: '#FF3B30', // Apple red
   },
   btnTextUnequip: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.error,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   btnOwned: {
-    backgroundColor: colors.bgSurface,
-    borderColor: colors.primary + '50',
+    backgroundColor: '#F2F2F7',
   },
   btnTextOwned: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1C1C1E',
   },
   btnBuy: {
-    backgroundColor: colors.bgSurface,
-    borderColor: colors.borderMain + '50',
+    backgroundColor: '#1C1C1E', // Dark primary button
   },
   btnTextBuy: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.textMain,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   btnLocked: {
-    backgroundColor: colors.bgSurface1,
-    borderColor: colors.borderMain + '20',
+    backgroundColor: '#F2F2F7',
+    opacity: 0.6,
   },
   btnTextLocked: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.textMain + '50',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8E8E93',
   }
 });

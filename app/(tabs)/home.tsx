@@ -111,7 +111,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bgMain,
+    backgroundColor: '#F2F2F7', // Apple system background
   },
   scrollContent: {
     width: '100%',
@@ -131,27 +131,31 @@ const styles = StyleSheet.create({
   },
   greeting: {
     ...typography.body,
-    color: colors.textMuted,
+    color: '#8E8E93',
     marginBottom: 4,
   },
   userName: {
     ...typography.h2,
     fontWeight: '800',
+    color: '#1C1C1E',
   },
   streakBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.warningContainer,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.warning + '33',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   streakText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: colors.warning,
   },
   mascotCardWrap: {
@@ -159,6 +163,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.h3,
+    color: '#1C1C1E',
     marginBottom: 16,
   },
   quickActionsGrid: {
@@ -171,18 +176,17 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: '29%',
     minWidth: 100,
-    minHeight: 128,
-    backgroundColor: colors.bgSurface,
+    minHeight: 120,
+    backgroundColor: '#FFFFFF',
     padding: 16,
-    borderRadius: 18,
+    borderRadius: 24, // Squircle look
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderMain + '50',
+    justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 3,
   },
   actionCardCompact: {
     flexBasis: '46%',
@@ -197,18 +201,22 @@ const styles = StyleSheet.create({
   },
   actionText: {
     ...typography.caption,
-    fontWeight: '700',
+    fontWeight: '600',
+    color: '#1C1C1E',
     textAlign: 'center',
   },
   weatherWidget: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.bgSurface,
-    padding: 20,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: colors.borderMain + '50',
+    backgroundColor: '#FFFFFF',
+    padding: 24,
+    borderRadius: 28, // Squircle
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 3,
   },
   weatherWidgetCompact: {
     alignItems: 'flex-start',
@@ -222,11 +230,12 @@ const styles = StyleSheet.create({
   },
   tempText: {
     ...typography.h3,
+    color: '#1C1C1E',
     marginBottom: 2,
   },
   weatherDesc: {
     ...typography.caption,
-    color: colors.textMuted,
+    color: '#8E8E93',
     flexShrink: 1,
   },
   weatherDetails: {
@@ -240,6 +249,6 @@ const styles = StyleSheet.create({
   weatherDetailText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textMuted,
+    color: '#8E8E93',
   }
 });

@@ -17,7 +17,47 @@ if (!API_BASE_URL) {
 export const api = create({
   baseURL: API_BASE_URL,
   timeout: 30000,
+  withCredentials: true,
 });
+
+type ApiResponse<T> = {
+  success: boolean;
+  data: T;
+};
+
+type CsrfTokenResponse = ApiResponse<{
+  csrfToken: string;
+}>;
+
+let csrfToken: string | null = null;
+let csrfTokenRequest: Promise<string> | null = null;
+
+const isUnsafeMethod = (method?: string) =>
+  ['post', 'put', 'patch', 'delete'].includes(method?.toLowerCase() ?? '');
+
+const isCsrfExemptUrl = (url?: string) =>
+  Boolean(
+    url?.includes('/auth/login') ||
+    url?.includes('/auth/register') ||
+    url?.includes('/auth/refresh') ||
+    url?.includes('/auth/logout') ||
+    url?.includes('/csrf-token'),
+  );
+
+const getCsrfToken = async () => {
+  if (csrfToken) return csrfToken;
+  if (csrfTokenRequest) return csrfTokenRequest;
+
+  csrfTokenRequest = api
+    .get<CsrfTokenResponse>('/csrf-token')
+    .then((response) => response.data.data.csrfToken)
+    .finally(() => {
+      csrfTokenRequest = null;
+    });
+
+  csrfToken = await csrfTokenRequest;
+  return csrfToken;
+};
 
 api.interceptors.request.use(async (config) => {
   try {
@@ -27,6 +67,16 @@ api.interceptors.request.use(async (config) => {
     }
   } catch {
   }
+
+  if (
+    Platform.OS === 'web' &&
+    config.headers &&
+    isUnsafeMethod(config.method) &&
+    !isCsrfExemptUrl(config.url)
+  ) {
+    config.headers['X-XSRF-TOKEN'] = await getCsrfToken();
+  }
+
   return config;
 });
 
@@ -113,5 +163,3 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-
