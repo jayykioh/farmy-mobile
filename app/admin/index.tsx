@@ -99,22 +99,11 @@ export default function AdminHubScreen() {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Đăng xuất',
-      'Bạn có chắc muốn đăng xuất khỏi trang quản trị?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Đăng xuất',
-          style: 'destructive',
-          onPress: async () => {
-            setLoggingOut(true);
-            await logout();
-            router.replace('/(auth)/welcome');
-          },
-        },
-      ],
-    );
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+    void logout();
+    router.replace('/(auth)/login');
   };
 
   const logoutButton = (
@@ -140,8 +129,7 @@ export default function AdminHubScreen() {
       <SafeAreaView style={styles.loadingContainer}>
         <PageHeader
           title="Hệ thống quản trị"
-          showBack={true}
-          fallbackHref="/(tabs)/profile"
+          showBack={false}
           rightElement={logoutButton}
         />
         <View style={styles.spinnerContainer}>
@@ -200,8 +188,7 @@ export default function AdminHubScreen() {
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
       <PageHeader
         title="Hệ thống quản trị"
-        showBack={true}
-        fallbackHref="/(tabs)/profile"
+        showBack={false}
         rightElement={logoutButton}
       />
       

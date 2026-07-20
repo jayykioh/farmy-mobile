@@ -127,14 +127,26 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    set({ user: null, isAuthenticated: false, isLoading: false });
+
+    let accessToken: string | null = null;
     try {
-      await api.post('/auth/logout');
+      accessToken = await AsyncStorage.getItem('access_token');
     } catch {
-    } finally {
-      await AsyncStorage.removeItem('access_token');
-      await AsyncStorage.removeItem('refresh_token');
-      set({ user: null, isAuthenticated: false, isLoading: false });
     }
+
+    const logoutRequest = api.post('/auth/logout', undefined, {
+      headers: accessToken
+        ? { Authorization: `Bearer ${accessToken}` }
+        : undefined,
+      timeout: 5000,
+    }).catch(() => undefined);
+
+    await Promise.allSettled([
+      AsyncStorage.removeItem('access_token'),
+      AsyncStorage.removeItem('refresh_token'),
+      logoutRequest,
+    ]);
   },
 }));
 
