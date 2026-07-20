@@ -1,17 +1,17 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { typography } from '../src/theme/typography';
-import { colors } from '../src/theme/colors';
-import { PageHeader } from '../src/components/PageHeader';
+import { typography } from '../../src/theme/typography';
+import { colors } from '../../src/theme/colors';
+import { PageHeader } from '../../src/components/PageHeader';
 import { Star, Lock } from 'lucide-react-native';
 import { useState, useEffect } from 'react';
-import { usePetStatus } from '../src/hooks/usePet';
-import { getErrorMessage } from '../src/utils/errors';
-import { PetMascot } from '../src/features/pet/components/PetMascot';
-import { ShopItemImage } from '../src/features/shop/components/ShopItemImage';
-import { buyShopItem, fetchShopItems, toggleEquipShopItem } from '../src/features/shop/api';
-import type { ShopItem, ShopItemViewModel } from '../src/features/shop/types';
-import type { PetEquipmentItem } from '../src/features/pet/types';
+import { usePetStatus } from '../../src/hooks/usePet';
+import { getErrorMessage } from '../../src/utils/errors';
+import { PetMascot } from '../../src/features/pet/components/PetMascot';
+import { ShopItemImage } from '../../src/features/shop/components/ShopItemImage';
+import { buyShopItem, fetchShopItems, toggleEquipShopItem } from '../../src/features/shop/api';
+import type { ShopItem, ShopItemViewModel } from '../../src/features/shop/types';
+import type { PetEquipmentItem } from '../../src/features/pet/types';
 
 const toPetEquipmentItem = (item: ShopItemViewModel): PetEquipmentItem => ({
   _id: item._id,
