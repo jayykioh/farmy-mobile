@@ -15,5 +15,16 @@ export const SHOP_SVG_XML: Record<string, string> = {
 
 export const getShopSvgXml = (imageUrl: string | undefined | null): string | undefined => {
   if (!imageUrl) return undefined;
-  return SHOP_SVG_XML[imageUrl];
+
+  const directMatch = SHOP_SVG_XML[imageUrl];
+  if (directMatch) return directMatch;
+
+  try {
+    const pathname = new URL(imageUrl).pathname;
+    return SHOP_SVG_XML[pathname];
+  } catch {
+    const path = imageUrl.split(/[?#]/, 1)[0];
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return SHOP_SVG_XML[normalizedPath];
+  }
 };

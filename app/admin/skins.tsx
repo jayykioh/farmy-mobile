@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   View, 
   Text, 
@@ -8,8 +8,7 @@ import {
   ActivityIndicator, 
   Alert, 
   Modal, 
-  ScrollView,
-  Image
+  ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
@@ -28,6 +27,7 @@ import { Button } from '../../src/components/Button';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
 import { getAdminSkins, createAdminSkin, updateAdminSkin, deleteAdminSkin } from '../../src/api/admin';
+import { ShopItemImage } from '../../src/features/shop/components/ShopItemImage';
 
 export type ShopItemInfo = {
   _id: string;
@@ -54,30 +54,14 @@ function SkinItem({
   onEdit: (item: ShopItemInfo) => void;
   onDelete: (item: ShopItemInfo) => void;
 }) {
-  const [imgError, setImgError] = useState(false);
-  // Backend stores relative paths like "/shop/non-la.svg".
-  // Images are served at origin level (http://host:port/shop/...), NOT under /api/v1.
-  // So we extract just the origin from the full API URL.
-  const imageUri = React.useMemo(() => {
-    if (!item.image_url) return null;
-    if (item.image_url.startsWith('http')) return item.image_url;
-    try {
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? '';
-      const origin = apiUrl ? new URL(apiUrl).origin : '';
-      return `${origin}${item.image_url}`;
-    } catch {
-      return item.image_url;
-    }
-  }, [item.image_url]);
   return (
     <View style={styles.skinCard}>
       <View style={styles.skinMedia}>
-        {imageUri && !imgError ? (
-          <Image 
-            source={{ uri: imageUri }} 
-            style={styles.skinImg} 
-            resizeMode="contain"
-            onError={() => setImgError(true)}
+        {item.image_url ? (
+          <ShopItemImage
+            imageUrl={item.image_url}
+            name={item.name}
+            style={styles.skinImg}
           />
         ) : (
           <View style={styles.imgPlaceholder}>
