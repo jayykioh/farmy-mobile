@@ -41,50 +41,90 @@ export default function CreateDiaryScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  const handleSelectImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Quyền truy cập', 'Ứng dụng cần quyền truy cập thư viện ảnh để tải lên hình ảnh.');
-      return;
-    }
+  const uploadImageFile = async (uri: string, filename: string, mimeType: string) => {
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', {
+        uri,
+        name: filename,
+        type: mimeType,
+      } as unknown as Blob);
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      quality: 0.8,
-    });
+      const response = await api.post('/snaps/upload', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
 
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      const selectedImage = result.assets[0];
-      setIsUploading(true);
-      try {
-        const formData = new FormData();
-        const filename = selectedImage.fileName || selectedImage.uri.split('/').pop()?.split('?')[0] || 'photo.jpg';
-        const type = selectedImage.mimeType || 'image/jpeg';
-
-        formData.append('file', {
-          uri: selectedImage.uri,
-          name: filename,
-          type,
-        } as unknown as Blob);
-
-        const response = await api.post('/snaps/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-
-        if (response.data?.success && response.data?.data?.publicUrl) {
-          setImageUrl(response.data.data.publicUrl);
-        } else {
-          throw new Error('Không nhận được đường dẫn ảnh từ máy chủ.');
-        }
-      } catch (err) {
-        Alert.alert('Lỗi tải ảnh', getErrorMessage(err, 'Không thể tải ảnh lên.'));
-      } finally {
-        setIsUploading(false);
+      if (response.data?.success && response.data?.data?.publicUrl) {
+        setImageUrl(response.data.data.publicUrl);
+      } else {
+        throw new Error('Không nhận được đường dẫn ảnh từ máy chủ.');
       }
+    } catch (err) {
+      Alert.alert('Lỗi tải ảnh', getErrorMessage(err, 'Không thể tải ảnh lên.'));
+    } finally {
+      setIsUploading(false);
     }
+  };
+
+  const handleSelectImage = async () => {
+    Alert.alert(
+      'Chọn nguồn ảnh',
+      'Bạn muốn chụp ảnh mới hay chọn ảnh từ thư viện?',
+      [
+        {
+          text: 'Chụp ảnh mới',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Quyền truy cập', 'Ứng dụng cần quyền sử dụng máy ảnh để chụp ảnh nhật ký.');
+              return;
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+              allowsEditing: true,
+              quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+              const selectedImage = result.assets[0];
+              const filename = selectedImage.fileName || selectedImage.uri.split('/').pop()?.split('?')[0] || 'photo.jpg';
+              const type = selectedImage.mimeType || 'image/jpeg';
+              await uploadImageFile(selectedImage.uri, filename, type);
+            }
+          },
+        },
+        {
+          text: 'Chọn từ thư viện',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Quyền truy cập', 'Ứng dụng cần quyền truy cập thư viện ảnh để tải lên hình ảnh.');
+              return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              allowsEditing: true,
+              quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+              const selectedImage = result.assets[0];
+              const filename = selectedImage.fileName || selectedImage.uri.split('/').pop()?.split('?')[0] || 'photo.jpg';
+              const type = selectedImage.mimeType || 'image/jpeg';
+              await uploadImageFile(selectedImage.uri, filename, type);
+            }
+          },
+        },
+        {
+          text: 'Hủy bỏ',
+          style: 'cancel',
+        },
+      ]
+    );
   };
 
   const activities = [
