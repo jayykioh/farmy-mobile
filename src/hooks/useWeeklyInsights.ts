@@ -21,16 +21,21 @@ export function useWeeklyInsights(limit: number = 5) {
     }
   }, [isAuthenticated, limit]);
 
-  const trigger = useCallback(async () => {
+  const trigger = useCallback(async (diaryId: string) => {
     if (!isAuthenticated) return;
     try {
       setIsTriggering(true);
-      await triggerWeeklyInsight();
+      const result = await triggerWeeklyInsight(diaryId);
+      if (result.already_exists) {
+        setIsTriggering(false);
+        return result;
+      }
       // Wait a moment for background processing to finish, then reload
       setTimeout(async () => {
         await loadInsights();
         setIsTriggering(false);
       }, 2000);
+      return result;
     } catch (err) {
       console.error('Trigger weekly insight error', err);
       setIsTriggering(false);

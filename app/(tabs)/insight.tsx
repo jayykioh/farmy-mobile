@@ -3,18 +3,32 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PageHeader } from '../../src/components/PageHeader';
 import { useWeeklyInsights } from '../../src/hooks/useWeeklyInsights';
+import { useDiaries } from '../../src/hooks/useDiary';
 import { colors } from '../../src/theme/colors';
 import { typography } from '../../src/theme/typography';
 import { Sparkles, FileText, ChevronRight, ChevronDown, Calendar, Lightbulb, Zap } from 'lucide-react-native';
 
 export default function InsightScreen() {
   const { data: insights = [], isLoading, isTriggering, trigger, refetch } = useWeeklyInsights(15);
+  const { data: diaries = [], isLoading: isLoadingDiaries } = useDiaries();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedDiaryId, setSelectedDiaryId] = useState<string | null>(null);
+
+  const selectedDiary = diaries.find((diary) => diary._id === selectedDiaryId)
+    ?? diaries.find((diary) => diary.status === 'active')
+    ?? diaries[0];
 
   const handleTrigger = async () => {
+    if (!selectedDiary) {
+      Alert.alert('Chưa có mùa vụ', 'Bạn cần tạo mùa vụ trước khi tạo phân tích.');
+      return;
+    }
     try {
-      await trigger();
-      Alert.alert('Thành công 🎉', 'Đã khởi tạo bản phân tích tuần mới nhất bằng AI.');
+      const result = await trigger(selectedDiary._id);
+      Alert.alert(
+        result?.already_exists ? 'Đã có báo cáo tuần này' : 'Thành công 🎉',
+        result?.message ?? 'Đã khởi tạo bản phân tích tuần mới nhất bằng AI.',
+      );
       refetch();
     } catch (error) {
       Alert.alert('Thất bại ❌', 'Không thể tạo phân tích lúc này. Hãy chắc chắn bạn đã ghi nhật ký chăm sóc cây gần đây.');
@@ -118,10 +132,31 @@ export default function InsightScreen() {
 
       {/* Floating Sparkles Trigger Button */}
       <View style={styles.triggerContainer}>
+        <Text style={styles.selectorLabel}>Chọn mùa vụ cần phân tích</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.seasonOptions}
+        >
+          {diaries.map((diary) => {
+            const isSelected = diary._id === selectedDiary?._id;
+            return (
+              <TouchableOpacity
+                key={diary._id}
+                style={[styles.seasonOption, isSelected && styles.seasonOptionSelected]}
+                onPress={() => setSelectedDiaryId(diary._id)}
+              >
+                <Text style={[styles.seasonOptionText, isSelected && styles.seasonOptionTextSelected]}>
+                  {diary.crop_type}{diary.season ? ` · ${diary.season}` : ''}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
         <TouchableOpacity
           style={styles.triggerButton}
           onPress={handleTrigger}
-          disabled={isTriggering || isLoading}
+          disabled={isTriggering || isLoading || isLoadingDiaries || !selectedDiary}
           activeOpacity={0.8}
         >
           {isTriggering ? (
@@ -173,6 +208,11 @@ export default function InsightScreen() {
                       </View>
                       <View style={styles.headerInfo}>
                         <Text style={styles.cardTitle}>Phân tích & Khuyến nghị</Text>
+                        {insight.crop_type ? (
+                          <Text style={styles.cropLabel}>
+                            {insight.crop_type}{insight.season ? ` · ${insight.season}` : ''}
+                          </Text>
+                        ) : null}
                         <View style={styles.dateRow}>
                           <Calendar size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
                           <Text style={styles.cardDate}>{formatDate(insight.week_start_date)}</Text>
@@ -229,6 +269,36 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.borderMain + '40',
   },
+  selectorLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  seasonOptions: {
+    gap: 8,
+    paddingBottom: 12,
+  },
+  seasonOption: {
+    borderWidth: 1,
+    borderColor: colors.borderMain,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    backgroundColor: colors.bgSurface,
+  },
+  seasonOptionSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLightest,
+  },
+  seasonOptionText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '700',
+  },
+  seasonOptionTextSelected: {
+    color: colors.primary,
+  },
   triggerButton: {
     backgroundColor: colors.primary,
     borderRadius: 16,
@@ -249,6 +319,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 14,
+  },
+  cropLabel: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: '700',
+    marginBottom: 2,
   },
   emptyContainer: {
     flex: 1,
