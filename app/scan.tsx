@@ -72,7 +72,7 @@ export default function ScanScreen() {
   };
 
   const handleCapture = async () => {
-    if (!cameraRef.current || !isCameraReady) {
+    if (!cameraRef.current || (!isCameraReady && Platform.OS !== 'web')) {
       Alert.alert('Máy ảnh chưa sẵn sàng', 'Vui lòng đợi camera khởi động xong rồi chụp lại.');
       return;
     }

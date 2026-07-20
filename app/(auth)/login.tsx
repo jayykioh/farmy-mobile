@@ -113,8 +113,6 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
-      <View style={styles.bgOrbTop} />
-      <View style={styles.bgOrbBottom} />
       <PageHeader title="Đăng nhập" fallbackHref="/(auth)/welcome" />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
@@ -194,26 +192,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bgMain,
-    position: 'relative',
-  },
-  bgOrbTop: {
-    position: 'absolute',
-    top: -100,
-    right: -80,
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    backgroundColor: colors.primaryLight + '28',
-  },
-  bgOrbBottom: {
-    position: 'absolute',
-    bottom: -120,
-    left: -90,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: colors.secondaryLight + '24',
+    backgroundColor: '#F2F2F7', // Apple's standard system group background
   },
   scrollContent: {
     flexGrow: 1,
@@ -221,16 +200,19 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 6,
-    paddingBottom: 24,
-    gap: 16,
+    paddingTop: 16,
+    paddingBottom: 40,
+    gap: 20,
   },
   heroCard: {
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderRadius: 30,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(188,202,187,0.45)',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28, // Squircle look
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 3,
   },
   heroBadge: {
     flexDirection: 'row',
@@ -238,74 +220,75 @@ const styles = StyleSheet.create({
     gap: 8,
     alignSelf: 'flex-start',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: colors.bgSurface1,
+    backgroundColor: '#F2F2F7',
     marginBottom: 16,
   },
   heroBadgeText: {
     ...typography.caption,
-    color: colors.primaryContainer,
+    color: '#8E8E93', // Apple standard secondary gray
     fontWeight: '700',
   },
   title: {
     ...typography.h1,
-    lineHeight: 38,
-    marginBottom: 10,
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1C1C1E',
+    lineHeight: 34,
+    marginBottom: 8,
   },
   subtitle: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: '#8E8E93',
+    lineHeight: 22,
   },
   signalRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 18,
+    gap: 12,
+    marginTop: 20,
   },
   signalPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: colors.bgSurface,
-    borderWidth: 1,
-    borderColor: colors.borderMain,
+    borderRadius: 16,
+    backgroundColor: '#F2F2F7',
   },
   signalText: {
     ...typography.caption,
-    color: colors.textMain,
-    fontWeight: '700',
+    color: '#1C1C1E',
+    fontWeight: '600',
   },
   formCard: {
-    backgroundColor: colors.bgSurface,
-    borderRadius: 30,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(188,202,187,0.55)',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    padding: 24,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 3,
   },
   formContainer: {
     gap: 16,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   primaryButton: {
-    marginBottom: 12,
+    marginBottom: 16,
+    borderRadius: 999, // Pill shape
   },
   googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.bgSurface1,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: colors.borderMain,
-    borderRadius: 22,
+    borderColor: '#E5E5EA',
+    borderRadius: 999,
     paddingVertical: 14,
   },
   googleBtnDisabled: {
@@ -315,18 +298,17 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: colors.primaryContainer,
-    color: colors.bgSurface,
+    backgroundColor: '#000000',
+    color: '#FFFFFF',
     textAlign: 'center',
     textAlignVertical: 'center',
     marginRight: 8,
-    overflow: 'hidden',
     fontWeight: '700',
     fontSize: 12,
   },
   googleBtnText: {
     ...typography.body,
-    fontWeight: '700',
-    color: colors.textMain,
+    fontWeight: '600',
+    color: '#1C1C1E',
   }
 });
