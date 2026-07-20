@@ -5,7 +5,7 @@ import { colors } from '../../src/theme/colors';
 import { PageHeader } from '../../src/components/PageHeader';
 import { ChevronDown, Camera, Droplets, FlaskConical, BugOff, Save, X } from 'lucide-react-native';
 import { Button } from '../../src/components/Button';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { goBackOrReplace } from '../../src/utils/navigation';
 import { useDiaries } from '../../src/hooks/useDiary';
@@ -25,12 +25,6 @@ export default function CreateDiaryScreen() {
   
   const initialDiaryId = Array.isArray(diaryId) ? diaryId[0] : diaryId;
   const [selectedDiaryId, setSelectedDiaryId] = useState<string | null>(initialDiaryId || null);
-
-  useEffect(() => {
-    if (initialDiaryId) {
-      setSelectedDiaryId(initialDiaryId);
-    }
-  }, [initialDiaryId]);
 
   const [showDropdown, setShowDropdown] = useState(false);
   const [stage, setStage] = useState('');
