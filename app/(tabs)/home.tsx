@@ -8,17 +8,15 @@ import { Droplets, Camera, MessageCircleQuestion, Flame, Sprout, Bell } from 'lu
 import { useRouter } from 'expo-router';
 import { useResponsiveLayout } from '../../src/hooks/useResponsiveLayout';
 import { WeeklyInsightsSection } from '../../src/components/WeeklyInsightsSection';
+import { PetStatusCard } from '../../src/features/pet/components/PetStatusCard';
+import { PET_STATUS_FALLBACK } from '../../src/features/pet/types';
 
 export default function HomeScreen() {
   const { user } = useAuthStore();
   const { data: petStatus, isLoading: petLoading, refetch: refetchPet } = usePetStatus();
   const router = useRouter();
   const { gutter, contentMaxWidth, isCompact } = useResponsiveLayout();
-
-  const level = petStatus?.level || 1;
-  const xp = petStatus?.exp || 0;
-  const maxXp = level * 100;
-  const progress = Math.min((xp / maxXp) * 100, 100);
+  const status = petStatus ?? PET_STATUS_FALLBACK;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -36,40 +34,13 @@ export default function HomeScreen() {
           </View>
           <View style={styles.streakBadge}>
             <Flame size={16} color={colors.warning} />
-            <Text style={styles.streakText}>Đang cập nhật</Text>
+            <Text style={styles.streakText}>{status.streakCount} ngày</Text>
           </View>
         </View>
 
         {/* Mascot Card */}
-        <View style={styles.mascotCard}>
-          <View style={styles.mascotHeader}>
-            <Text style={styles.mascotTitle}>Bé Thóc</Text>
-            <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>Lv.{level}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.mascotImageContainer} accessibilityLabel="Linh vật Bé Thóc">
-            <View style={styles.mascotIconShell}>
-              <Sprout size={64} color={colors.primaryContainer} strokeWidth={1.7} />
-            </View>
-          </View>
-
-          <View style={styles.xpContainer}>
-            <View style={styles.xpRow}>
-              <Text style={styles.xpLabel}>Kinh nghiệm</Text>
-              <Text style={styles.xpValue}>{xp} / {maxXp} XP</Text>
-            </View>
-            <View
-              style={styles.progressBar}
-              accessible
-              accessibilityRole="progressbar"
-              accessibilityLabel="Tiến độ kinh nghiệm"
-              accessibilityValue={{ min: 0, max: maxXp, now: xp }}
-            >
-              <View style={[styles.progressFill, { width: `${progress}%` }]} />
-            </View>
-          </View>
+        <View style={styles.mascotCardWrap}>
+          <PetStatusCard status={status} />
         </View>
 
         {/* Quick Actions */}
@@ -176,88 +147,8 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.warning,
   },
-  mascotCard: {
-    backgroundColor: colors.bgSurface,
-    borderRadius: 22,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.borderMain + '50',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
+  mascotCardWrap: {
     marginBottom: 28,
-  },
-  mascotHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  mascotTitle: {
-    ...typography.h3,
-  },
-  levelBadge: {
-    backgroundColor: colors.secondaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  levelText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.secondaryDark,
-  },
-  mascotImageContainer: {
-    minHeight: 148,
-    backgroundColor: colors.primaryLightest,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.primaryLight + '66',
-  },
-  mascotIconShell: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.bgSurface,
-    borderWidth: 1,
-    borderColor: colors.primaryLight,
-  },
-  xpContainer: {
-    gap: 8,
-  },
-  xpRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  xpLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    fontWeight: '700',
-  },
-  xpValue: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '800',
-    fontFamily: 'Courier',
-  },
-  progressBar: {
-    height: 12,
-    backgroundColor: colors.bgSurface1,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 6,
   },
   sectionTitle: {
     ...typography.h3,

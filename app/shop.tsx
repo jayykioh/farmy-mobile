@@ -8,6 +8,8 @@ import { useState, useEffect } from 'react';
 import { usePetStatus } from '../src/hooks/usePet';
 import { api } from '../src/api/client';
 import { getErrorMessage } from '../src/utils/errors';
+import { PetMascot } from '../src/features/pet/components/PetMascot';
+import type { PetAnchor, PetEquipmentItem } from '../src/features/pet/types';
 
 interface ShopItem {
   _id: string;
@@ -18,7 +20,18 @@ interface ShopItem {
   owned?: boolean;
   equipped?: boolean;
   img?: string;
+  image_url?: string;
+  anchor?: PetAnchor;
 }
+
+const toPetEquipmentItem = (item: ShopItem): PetEquipmentItem => ({
+  _id: item._id,
+  name: item.name,
+  category: item.category,
+  image_url: item.image_url ?? item.img,
+  img: item.img,
+  anchor: item.anchor,
+});
 
 export default function ShopScreen() {
   const categories = [
@@ -117,7 +130,8 @@ export default function ShopScreen() {
   const filteredItems = normalizedItems
     .filter(item => item.category === activeCategory)
     .sort((a, b) => (a.requiredLevel || 1) - (b.requiredLevel || 1) || (a.price || 0) - (b.price || 0) || a.name.localeCompare(b.name));
-  const equippedItem = normalizedItems.find(item => item.equipped);
+  const equippedItems = normalizedItems.filter(item => item.equipped);
+  const equippedItem = equippedItems[0];
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right']}>
@@ -161,14 +175,15 @@ export default function ShopScreen() {
         <View style={styles.previewCard}>
           <Text style={styles.previewTitle}>ĐANG TRANG BỊ</Text>
           <View style={styles.previewBox}>
-            <View style={styles.mascotPlaceholder}>
-              <Text style={styles.mascotEmoji}>🌱</Text>
-            </View>
-            {equippedItem && equippedItem.img && (
-              <Image source={{ uri: equippedItem.img }} style={styles.equippedItemImg} />
-            )}
+            <PetMascot
+              status={petStatus}
+              size={140}
+              equippedItemsDetails={equippedItems.map(toPetEquipmentItem)}
+            />
           </View>
-          <Text style={styles.previewItemName}>{equippedItem ? equippedItem.name : 'Chưa trang bị'}</Text>
+          <Text style={styles.previewItemName} numberOfLines={1}>
+            {equippedItem ? equippedItems.map(item => item.name).join(', ') : 'Chưa trang bị'}
+          </Text>
         </View>
 
         {/* Items Grid */}
@@ -336,35 +351,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingBottom: 24,
     position: 'relative',
-  },
-  mascotPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.bgSurface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: colors.bgSurface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  mascotEmoji: {
-    fontSize: 50,
-  },
-  equippedItemImg: {
-    position: 'absolute',
-    top: 20,
-    right: '20%',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.bgSurface,
-    borderWidth: 2,
-    borderColor: colors.primary + '30',
   },
   previewItemName: {
     ...typography.bodySmall,

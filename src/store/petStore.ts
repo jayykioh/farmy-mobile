@@ -1,17 +1,9 @@
 import { create } from 'zustand';
 import { api } from '../api/client';
 import { getErrorMessage } from '../utils/errors';
+import type { PetStatus } from '../features/pet/types';
 
-export interface PetStatus {
-  _id: string;
-  user_id: string;
-  exp: number;
-  level: number;
-  mood: 'happy' | 'neutral' | 'sad';
-  last_interaction_at?: string;
-  ownedItems: string[];
-  equippedItems: string[];
-}
+export type { PetStatus };
 
 interface PetState {
   data: PetStatus | null;
