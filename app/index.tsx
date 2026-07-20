@@ -11,8 +11,10 @@ export default function Index() {
   useEffect(() => {
     if (!isLoading) {
       if (isAuthenticated) {
-        if (user && !user.onboardingCompleted) {
+        if (user && !user.onboardingCompleted && user.role?.toLowerCase() !== 'admin') {
           router.replace('/(auth)/onboarding-1');
+        } else if (user && user.role?.toLowerCase() === 'admin') {
+          router.replace('/admin');
         } else {
           router.replace('/(tabs)/home');
         }

@@ -30,8 +30,10 @@ export default function RegisterScreen() {
       setLoading(true);
       await registerUser({ name, email, password, role: 'user' });
       const u = useAuthStore.getState().user;
-      if (u && !u.onboardingCompleted) {
+      if (u && !u.onboardingCompleted && u.role?.toLowerCase() !== 'admin') {
         router.replace('/(auth)/onboarding-1');
+      } else if (u && u.role?.toLowerCase() === 'admin') {
+        router.replace('/admin');
       } else {
         router.replace('/(tabs)/home');
       }

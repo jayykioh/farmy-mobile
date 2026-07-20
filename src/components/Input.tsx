@@ -7,9 +7,10 @@ interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   icon?: React.ReactNode;
+  rightElement?: React.ReactNode;
 }
 
-export const Input: React.FC<InputProps> = ({ label, error, icon, style, ...props }) => {
+export const Input: React.FC<InputProps> = ({ label, error, icon, rightElement, style, ...props }) => {
   const [isFocused, setIsFocused] = useState(false);
 
   return (
@@ -33,6 +34,7 @@ export const Input: React.FC<InputProps> = ({ label, error, icon, style, ...prop
             props.onBlur?.(event);
           }}
         />
+        {rightElement && <View style={styles.rightElementContainer}>{rightElement}</View>}
       </View>
       {error && <Text style={styles.errorText} accessibilityLiveRegion="polite">{error}</Text>}
     </View>
@@ -82,5 +84,10 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.error,
     marginTop: 4,
+  },
+  rightElementContainer: {
+    paddingRight: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   }
 });

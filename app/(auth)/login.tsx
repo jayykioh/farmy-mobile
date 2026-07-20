@@ -35,8 +35,10 @@ export default function LoginScreen() {
       setLoading(true);
       await login({ email, password });
       const u = useAuthStore.getState().user;
-      if (u && !u.onboardingCompleted) {
+      if (u && !u.onboardingCompleted && u.role?.toLowerCase() !== 'admin') {
         router.replace('/(auth)/onboarding-1');
+      } else if (u && u.role?.toLowerCase() === 'admin') {
+        router.replace('/admin');
       } else {
         router.replace('/(tabs)/home');
       }
@@ -89,8 +91,10 @@ export default function LoginScreen() {
           const rawUser = response.data.data?.user ?? response.data.data;
           
           await setSession(rawUser, token, refreshToken || undefined);
-          if (rawUser && !rawUser.onboardingCompleted) {
+          if (rawUser && !rawUser.onboardingCompleted && rawUser.role?.toLowerCase() !== 'admin') {
             router.replace('/(auth)/onboarding-1');
+          } else if (rawUser && rawUser.role?.toLowerCase() === 'admin') {
+            router.replace('/admin');
           } else {
             router.replace('/(tabs)/home');
           }
