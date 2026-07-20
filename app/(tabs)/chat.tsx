@@ -90,7 +90,7 @@ export default function ChatScreen() {
                   {msg.content || '...'}
                 </Text>
                 
-                {msg.role === 'assistant' && msg.content && (
+                {msg.role === 'assistant' && !!msg.content && (
                   <View style={styles.actionRow}>
                     <TouchableOpacity style={styles.actionBtn} onPress={() => handleFeedback('up')} accessibilityRole="button" accessibilityLabel="Phản hồi hữu ích">
                       <ThumbsUp size={14} color={colors.textMain} />
@@ -110,7 +110,7 @@ export default function ChatScreen() {
             </View>
           )}
 
-          {error && (
+          {!!error && (
             <View style={styles.errorBanner}>
               <Text style={styles.errorText}>{error}</Text>
             </View>

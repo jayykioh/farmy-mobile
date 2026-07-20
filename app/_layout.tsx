@@ -52,7 +52,6 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="scan" options={{ animation: 'fade' }} />
-        <Stack.Screen name="shop" options={{ animation: 'fade' }} />
         <Stack.Screen name="insights" options={{ animation: 'fade' }} />
         <Stack.Screen name="reminders" options={{ animation: 'fade' }} />
         <Stack.Screen name="diary/[id]" options={{ animation: 'fade' }} />

@@ -1,5 +1,5 @@
 import { Redirect, Tabs } from 'expo-router';
-import { Home, BookText, Bot, User, Sparkles } from 'lucide-react-native';
+import { Home, BookText, Bot, User, Sparkles, Store } from 'lucide-react-native';
 import { colors } from '../../src/theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../src/store/authStore';
@@ -67,6 +67,13 @@ export default function TabLayout() {
         options={{
           title: 'Phân tích',
           tabBarIcon: ({ color }) => <Sparkles color={color} size={24} />
+        }} 
+      />
+      <Tabs.Screen 
+        name="shop" 
+        options={{
+          title: 'Cửa hàng',
+          tabBarIcon: ({ color }) => <Store color={color} size={24} />
         }} 
       />
       <Tabs.Screen 
